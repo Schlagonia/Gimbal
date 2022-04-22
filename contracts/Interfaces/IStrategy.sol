@@ -8,25 +8,27 @@ interface Strategy {
 
     function vault() external view returns (address);
 
-    function want() external view returns (address);
+    /// @notice Returns the underlying ERC20 token the strategy accepts.
+    /// @return The underlying ERC20 token the strategy accepts.
+    function underlying() external view returns (ERC20);
 
-    function apiVersion() external pure returns (string memory);
-
-    function keeper() external view returns (address);
+    function owner() external view returns (address);
 
     function isActive() external view returns (bool);
 
-    function delegatedAssets() external view returns (uint256);
+    /// @notice Deposit a specific amount of underlying tokens into the strategy.
+    /// @param amount The amount of underlying tokens to deposit.
+    /// @return An error code, or 0 if the deposit was successful.
+    function deposit(uint256 amount) external returns (uint256);
 
+    /// @notice Withdraws a specific amount of underlying tokens from the strategy.
+    /// @param amount The amount of underlying tokens to withdraw.
+    /// @return An error code, or 0 if the withdrawal was successful.
+    function withdraw(uint256 amount) external returns (uint256);
+
+    /// @notice Returns a user's strategy balance in underlying tokens.
+    /// @return The user's strategy balance in underlying tokens.
+    /// @dev May mutate the state of the strategy by accruing interest.
     function estimatedTotalAssets() external view returns (uint256);
 
-    function tendTrigger(uint256 callCost) external view returns (bool);
-
-    function tend() external;
-
-    function harvestTrigger(uint256 callCost) external view returns (bool);
-
-    function harvest() external;
-
-    event Harvested(uint256 profit, uint256 loss, uint256 debtPayment, uint256 debtOutstanding);
 }

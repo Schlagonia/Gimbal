@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.0;
 
-import {Auth} from "./solmate/auth/Auth.sol";
-import {ERC4626} from "./solmate/tokens/ERC4626.sol";
+import {Auth} from "./Solmate/auth/Auth.sol";
+import {ERC4626} from "./Solmate/tokens/ERC4626.sol";
 
-import {SafeCastLib} from "./solmate/utils/SafeCastLib.sol";
-import {SafeTransferLib} from "./solmate/utils/SafeTransferLib.sol";
-import {FixedPointMathLib} from "./solmate/utils/FixedPointMathLib.sol";
+import {SafeCastLib} from "./Solmate/utils/SafeCastLib.sol";
+import {SafeTransferLib} from "./Solmate/utils/SafeTransferLib.sol";
+import {FixedPointMathLib} from "./Solmate/utils/FixedPointMathLib.sol";
 
-import {WETH} from "./solmate/tokens/WETH.sol";
-import {ERC20} from "./solmate/tokens/ERC20.sol";
+import {WETH} from "./Solmate/tokens/WETH.sol";
+import {ERC20} from "./Solmate/tokens/ERC20.sol";
 
 import {Strategy} from './Interfaces/IStrategy.sol';
 
@@ -42,15 +42,13 @@ contract GimbalVault is Bridgerton, ERC4626, Auth {
     /// @notice Creates a new Vault that accepts a specific underlying token.
     /// @param _UNDERLYING The ERC20 compliant token the Vault should accept.
     /// @param _stargateRouter The address of the router for Stragate
-    /// @param _usdc Usdc address on this chain
-    /// @param _usdt USDT address on this chain
+    /// @param _keeper The address to set ass keeper
     constructor(
         ERC20 _UNDERLYING,
-        address _stargateRouter,
-        address _usdc,
-        address _usdt
+        address _keeper,
+        address _stargateRouter
         )
-        Bridgerton(_stargateRouter, _usdc, _usdt) 
+        Bridgerton(_stargateRouter ) 
         ERC4626(
             // Underlying token
             _UNDERLYING,
@@ -64,6 +62,8 @@ contract GimbalVault is Bridgerton, ERC4626, Auth {
         UNDERLYING = _UNDERLYING;
 
         BASE_UNIT = 10**decimals;
+
+        keeper = _keeper;
 
         // Prevent minting of rvTokens until
         // the initialize function is called.
@@ -99,6 +99,10 @@ contract GimbalVault is Bridgerton, ERC4626, Auth {
                         HARVEST CONFIGURATION
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice Emitted when the keeper is updated.
+    /// @param _keeper The new keeper after the update.
+    event KeeperUpdated(address _keeper);
+
     /// @notice Emitted when the harvest window is updated.
     /// @param user The authorized user who triggered the update.
     /// @param newHarvestWindow The new harvest window.
@@ -126,6 +130,29 @@ contract GimbalVault is Bridgerton, ERC4626, Auth {
     /// @notice The value that will replace harvestDelay next harvest.
     /// @dev In the case that the next delay is 0, no update will be applied.
     uint64 public nextHarvestDelay;
+
+    /// @notice The address of the current keeper.
+    /// @dev gets set in constructor. Default is msg.sender
+    address public keeper;
+
+    /// @notice To be called on contracts where a keeper is allowed
+    /// @dev Keeps requiresAuth to be for onlyOwner Calls.
+    modifier onlyKeeper() {
+        require(msg.sender == owner || msg.sender == keeper, "UNAUTHORIZED");
+        _;
+    }
+
+    /// @notice Sets a new keeper.
+    /// @param _newKeeper The new keeper address.
+    /// @dev Must be called by either owner or current keeper.
+    function setNewKeeper(address _newKeeper) external onlyKeeper {
+        require(_newKeeper != address(0), "Invalid Address");
+
+        // Update the keeper.
+       keeper = _newKeeper;
+
+        emit KeeperUpdated(keeper);
+    }
 
     /// @notice Sets a new harvest window.
     /// @param newHarvestWindow The new harvest window.
@@ -192,32 +219,6 @@ contract GimbalVault is Bridgerton, ERC4626, Auth {
     }
 
     /*///////////////////////////////////////////////////////////////
-                   UNDERLYING IS WETH CONFIGURATION
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice Whether the Vault should treat the underlying token as WETH compatible.
-    /// @dev If enabled the Vault will allow trusting strategies that accept Ether.
-    bool public underlyingIsWETH;
-
-    /// @notice Emitted when whether the Vault should treat the underlying as WETH is updated.
-    /// @param user The authorized user who triggered the update.
-    /// @param newUnderlyingIsWETH Whether the Vault nows treats the underlying as WETH.
-    event UnderlyingIsWETHUpdated(address indexed user, bool newUnderlyingIsWETH);
-
-    /// @notice Sets whether the Vault treats the underlying as WETH.
-    /// @param newUnderlyingIsWETH Whether the Vault should treat the underlying as WETH.
-    /// @dev The underlying token must have 18 decimals, to match Ether's decimal scheme.
-    function setUnderlyingIsWETH(bool newUnderlyingIsWETH) external requiresAuth {
-        // Ensure the underlying token's decimals match ETH if is WETH being set to true.
-        require(!newUnderlyingIsWETH || UNDERLYING.decimals() == 18, "WRONG_DECIMALS");
-
-        // Update whether the Vault treats the underlying as WETH.
-        underlyingIsWETH = newUnderlyingIsWETH;
-
-        emit UnderlyingIsWETHUpdated(msg.sender, newUnderlyingIsWETH);
-    }
-
-    /*///////////////////////////////////////////////////////////////
                           STRATEGY STORAGE
     //////////////////////////////////////////////////////////////*/
 
@@ -273,32 +274,50 @@ contract GimbalVault is Bridgerton, ERC4626, Auth {
     /*///////////////////////////////////////////////////////////////
                         Bridgerton LOGIC
     //////////////////////////////////////////////////////////////*/
+
+    /// @notice Updates the stargate Router used for cross chain swaps
+    /// @dev Must be called by contract owner. Calls to Bridgerton Function.
+    /// @param _router The new Stargate Router Address
     function changeStargateRouter(address _router) external requiresAuth  {
         _changeStargateRouter(_router);
     }
 
-    function addAsset(address _address, uint256 _pid) external requiresAuth  {
-        _addAsset(_address, _pid);
+    /// @notice Updates the allowed slippage for cross chain swaps
+    /// @dev Must be called by contract owner. Calls to Bridgerton Function.
+    /// @param _slippage The new slippage param
+    function setSlippageProtectionOut(uint256 _slippage) external requiresAuth  {
+        _setSlippageProtectionOut(_slippage);
     }
 
+    /// @notice Updates the PID for the Underlying asset
+    /// @dev Must be called by contract owner. Calls to Bridgerton Function.
+    /// @param _pid New PID for the underlying token
+    function setPid(uint256 _pid) external requiresAuth  {
+        _setPid(_pid);
+    }
+
+    /// @notice Function forexternal Account or Keeper to call to estimate cross chain Gas fee
+    /// @dev Must be called by contract owner or Keeper. Calls to Bridgerton Function.
+    /// @param _dstChainId ID of chain we are swapping to
+    /// @param _vaultTo The Strategy that the receiving Vault should send funds to
     function externalGetSwapFee(
         uint16 _dstChainId, 
-        address[] memory _vaultTo
-    ) external view requiresAuth returns(uint256) {
+        address _vaultTo
+    ) external view onlyKeeper returns(uint256) {
         return _externalGetSwapFee(_dstChainId, _vaultTo);
     }
 
-    function getMinOut(uint256 _amountIn) internal view requiresAuth returns(uint256) {
-        return _getMinOut(_amountIn);
-    }
-
+    /// @notice Initiates a Cross chain to the dstChain
+    /// @dev Must be called by contract owner or Keeper. Calls to Bridgerton Function.
+    /// @param chainId The Stargate ChainId for the destination chain
+    /// @param _amount The amount of underlying that should be swapped
+    /// @param _vaultTo The Strategy that the receiving Vault should send funds to
     function swap(
         uint16 chainId, 
-        address _asset, 
         uint256 _amount,
-        address[] memory _vaultTo
+        address _vaultTo
     ) external payable requiresAuth returns(bool) {
-        return _swap(chainId, _asset, _amount, _vaultTo);
+        return _swap(chainId, address(UNDERLYING), _amount, _vaultTo);
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -419,7 +438,7 @@ contract GimbalVault is Bridgerton, ERC4626, Auth {
 
             // Get the strategy's previous and current balance.
             uint256 balanceLastHarvest = getStrategyData[strategy].balance;
-            uint256 balanceThisHarvest = strategy.balanceOfUnderlying(address(this));
+            uint256 balanceThisHarvest = strategy.estimatedTotalAssets();
 
             // Update the strategy's stored balance. Cast overflow is unrealistic.
             getStrategyData[strategy].balance = balanceThisHarvest.safeCastTo248();
@@ -505,20 +524,12 @@ contract GimbalVault is Bridgerton, ERC4626, Auth {
 
         emit StrategyDeposit(msg.sender, strategy, underlyingAmount);
 
-        // We need to deposit differently if the strategy takes ETH.
-        if (strategy.isCEther()) {
-            // Unwrap the right amount of WETH.
-            WETH(payable(address(UNDERLYING))).withdraw(underlyingAmount);
+        // Approve underlyingAmount to the strategy so we can deposit.
+        UNDERLYING.safeApprove(address(strategy), underlyingAmount);
 
-            // Deposit into the strategy and assume it will revert on error.
-            ETHStrategy(address(strategy)).mint{value: underlyingAmount}();
-        } else {
-            // Approve underlyingAmount to the strategy so we can deposit.
-            UNDERLYING.safeApprove(address(strategy), underlyingAmount);
+        // Deposit into the strategy and revert if it returns an error code.
+        require(strategy.deposit(underlyingAmount) == 0, "deposit_FAILED");
 
-            // Deposit into the strategy and revert if it returns an error code.
-            require(ERC20Strategy(address(strategy)).mint(underlyingAmount) == 0, "MINT_FAILED");
-        }
     }
 
     /// @notice Withdraw a specific amount of underlying tokens from a strategy.
@@ -541,10 +552,7 @@ contract GimbalVault is Bridgerton, ERC4626, Auth {
         emit StrategyWithdrawal(msg.sender, strategy, underlyingAmount);
 
         // Withdraw from the strategy and revert if it returns an error code.
-        require(strategy.redeemUnderlying(underlyingAmount) == 0, "REDEEM_FAILED");
-
-        // Wrap the withdrawn Ether into WETH if necessary.
-        if (strategy.isCEther()) WETH(payable(address(UNDERLYING))).deposit{value: underlyingAmount}();
+        require(strategy.withdraw(underlyingAmount) == 0, "REDEEM_FAILED");
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -567,7 +575,7 @@ contract GimbalVault is Bridgerton, ERC4626, Auth {
         // Ensure the strategy accepts the correct underlying token.
         // If the strategy accepts ETH the Vault should accept WETH, it'll handle wrapping when necessary.
         require(
-            strategy.isCEther() ? underlyingIsWETH : ERC20Strategy(address(strategy)).underlying() == UNDERLYING,
+            Strategy(address(strategy)).underlying() == UNDERLYING,
             "WRONG_UNDERLYING"
         );
 
@@ -691,7 +699,7 @@ contract GimbalVault is Bridgerton, ERC4626, Auth {
                 emit StrategyWithdrawal(msg.sender, strategy, amountToPull);
 
                 // Withdraw from the strategy and revert if returns an error code.
-                require(strategy.redeemUnderlying(amountToPull) == 0, "REDEEM_FAILED");
+                require(strategy.withdraw(amountToPull) == 0, "REDEEM_FAILED");
 
                 // If we fully depleted the strategy:
                 if (strategyBalanceAfterWithdrawal == 0) {
@@ -712,11 +720,6 @@ contract GimbalVault is Bridgerton, ERC4626, Auth {
             totalStrategyHoldings -= underlyingAmount;
         }
 
-        // Cache the Vault's balance of ETH.
-        uint256 ethBalance = address(this).balance;
-
-        // If the Vault's underlying token is WETH compatible and we have some ETH, wrap it into WETH.
-        if (ethBalance != 0 && underlyingIsWETH) WETH(payable(address(UNDERLYING))).deposit{value: ethBalance}();
     }
 
     /// @notice Pushes a single strategy to front of the withdrawal stack.
