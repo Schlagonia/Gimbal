@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.10;
+pragma solidity >=0.8.0;
 
 import { SafeERC20, IERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import { IStargateRouter } from "./Interfaces/Stargate/IStargateRouter.sol";
 
-contract Bridgerton is Ownable{
+contract Bridgerton{
     using SafeERC20 for IERC20;
     using Address for address;
 
@@ -37,21 +36,21 @@ contract Bridgerton is Ownable{
         pids[_usdt] = 2;
     }
 
-    function _changeStargateRouter(address _router) external onlyOwner {
+    function _changeStargateRouter(address _router) internal  {
         require(_router != address(0), 'Must be validly address');
         stargateRouter = _router;
     }
 
     //can be used to add a new asset or change a current one
-    function addAsset(address _address, uint256 _pid) external onlyOwner {
+    function _addAsset(address _address, uint256 _pid) internal  {
         pids[_address] = _pid;
     }
 
     //get the expected gas fee\
-    function getSwapFee(
+    function _externalGetSwapFee(
         uint16 _dstChainId, 
         address[] memory _vaultTo
-    ) external view returns(uint256) {
+    ) internal view returns(uint256) {
 
         bytes memory _toAddress = abi.encodePacked(address(this));
         bytes memory _data =  abi.encodePacked(_vaultTo);
@@ -85,7 +84,7 @@ contract Bridgerton is Ownable{
         return nativeFee;
     }
 
-    function getMinOut(uint256 _amountIn) internal view returns(uint256) {
+    function _getMinOut(uint256 _amountIn) internal view returns(uint256) {
         return (_amountIn * (DENOMINATOR - slippageProtectionOut)) / DENOMINATOR;
     }
 
@@ -95,14 +94,14 @@ contract Bridgerton is Ownable{
         address _asset, 
         uint256 _amount,
         address[] memory _vaultTo
-    ) external payable onlyOwner returns(bool){
+    ) internal returns(bool) {
         require(IERC20(_asset).balanceOf(address(this)) >= _amount, "Contract doesn't Hold enough tokens");
 
         uint256 pid = pids[_asset];
         require(pid != 0, "Asset Not Added");
 
         uint256 qty = _amount;
-        uint256 amountOutMin = getMinOut(_amount);
+        uint256 amountOutMin = _getMinOut(_amount);
 
         bytes memory _toAddress = abi.encodePacked(address(this));
         bytes memory data =  abi.encodePacked(_vaultTo);
@@ -142,7 +141,5 @@ contract Bridgerton is Ownable{
             amountLD
         );
     }
-
-    receive() external payable{}
 
 }
