@@ -1,21 +1,15 @@
 const { ethers } = require("hardhat");
 const hre = require("hardhat");
-const { BigNumber } = require("ethers");
+const { impersonateAddress } = require("../helpers/misc-utils");
 
 async function main() {
 
-  await hre.network.provider.request({
-    method: "hardhat_impersonateAccount",
-    params: [""],
-  });
-
-  const signer = await ethers.provider.getSigner("");
+  const signer = await impersonateAddress('');
 
   const Vault = await ethers.getContractFactory("GimbalVault");
   
   //Deploy the vault
-  let vault = await Vault.deploy(
-        vault,
+  let vault = await Vault.connect(signer).deploy(
         '', //Underlying,
         '', //Keeper,
         '' // Stargate Router,
