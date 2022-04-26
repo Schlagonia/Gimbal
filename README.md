@@ -22,6 +22,8 @@ The Bridgerton.sol contract utilizies the Stargate router to send funds between 
 
 The Strategies for each vault (StratExample.sol) are adapted from Yearn.Finance strategies used for their vaults.
 
+![alt text]('./misc/vaultArch.png')
+
 ## Tests
 
 
