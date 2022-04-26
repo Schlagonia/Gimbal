@@ -29,7 +29,7 @@ The Strategies for each vault (StratExample.sol) are adapted from Yearn.Finance 
 
 ## Cobntributing
 
-To submit contributions create a fork on your own Github with all changes proposed and submit a Pull Request on to the main repo
+To submit contributions create a fork on your own Github with all changes proposed and submit a Pull Request on to the main branch
 
 Pull Requests will be reviewed by team members and merged if approved
 
