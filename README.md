@@ -33,6 +33,7 @@ To submit contributions create a fork on your own Github with all changes propos
 
 Pull Requests will be reviewed by team members and merged if approved
 
+Make sure to 'Git Pull' before working on any updates to make sure your branch is up to date
 ## Hardhat
 Try running some of the following tasks:
 
