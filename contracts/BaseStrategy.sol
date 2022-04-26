@@ -3,175 +3,22 @@ pragma solidity >=0.8.0;
 pragma experimental ABIEncoderV2;
 
 import { SafeERC20, IERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-
-struct StrategyParams {
-    uint256 performanceFee;
-    uint256 activation;
-    uint256 debtRatio;
-    uint256 minDebtPerHarvest;
-    uint256 maxDebtPerHarvest;
-    uint256 lastReport;
-    uint256 totalDebt;
-    uint256 totalGain;
-    uint256 totalLoss;
-}
-
-interface VaultAPI is IERC20 {
-    function name() external view returns (string calldata);
-
-    function symbol() external view returns (string calldata);
-
-    function decimals() external view returns (uint256);
-
-    function apiVersion() external pure returns (string memory);
-
-    function permit(
-        address owner,
-        address spender,
-        uint256 amount,
-        uint256 expiry,
-        bytes calldata signature
-    ) external returns (bool);
-
-    // NOTE: Vyper produces multiple signatures for a given function with "default" args
-    function deposit() external returns (uint256);
-
-    function deposit(uint256 amount) external returns (uint256);
-
-    function deposit(uint256 amount, address recipient) external returns (uint256);
-
-    // NOTE: Vyper produces multiple signatures for a given function with "default" args
-    function withdraw() external returns (uint256);
-
-    function withdraw(uint256 maxShares) external returns (uint256);
-
-    function withdraw(uint256 maxShares, address recipient) external returns (uint256);
-
-    function UNDERLYING() external view returns (address);
-
-    function strategies(address _strategy) external view returns (StrategyParams memory);
-
-    function pricePerShare() external view returns (uint256);
-
-    function totalAssets() external view returns (uint256);
-
-    function depositLimit() external view returns (uint256);
-
-    function maxAvailableShares() external view returns (uint256);
-
-    /**
-     * View how much the Vault would increase this Strategy's borrow limit,
-     * based on its present performance (since its last report). Can be used to
-     * determine expectedReturn in your Strategy.
-     */
-    function creditAvailable() external view returns (uint256);
-
-    /**
-     * View how much the Vault would like to pull back from the Strategy,
-     * based on its present performance (since its last report). Can be used to
-     * determine expectedReturn in your Strategy.
-     */
-    function debtOutstanding() external view returns (uint256);
-
-    /**
-     * View how much the Vault expect this Strategy to return at the current
-     * block, based on its present performance (since its last report). Can be
-     * used to determine expectedReturn in your Strategy.
-     */
-    function expectedReturn() external view returns (uint256);
-
-    /**
-     * This is the main contact point where the Strategy interacts with the
-     * Vault. It is critical that this call is handled as intended by the
-     * Strategy. Therefore, this function will be called by BaseStrategy to
-     * make sure the integration is correct.
-     */
-    function report(
-        uint256 _gain,
-        uint256 _loss,
-        uint256 _debtPayment
-    ) external returns (uint256);
-
-    /**
-     * This function should only be used in the scenario where the Strategy is
-     * being retired but no migration of the positions are possible, or in the
-     * extreme scenario that the Strategy needs to be put into "Emergency Exit"
-     * mode in order for it to exit as quickly as possible. The latter scenario
-     * could be for any reason that is considered "critical" that the Strategy
-     * exits its position as fast as possible, such as a sudden change in
-     * market conditions leading to losses, or an imminent failure in an
-     * external dependency.
-     */
-    function revokeStrategy() external;
-
-    /**
-     * View the governance address of the Vault to assert privileged functions
-     * can only be called by governance. The Strategy serves the Vault, so it
-     * is subject to governance defined by the Vault.
-     */
-    function governance() external view returns (address);
-
-    /**
-     * View the management address of the Vault to assert privileged functions
-     * can only be called by management. The Strategy serves the Vault, so it
-     * is subject to management defined by the Vault.
-     */
-    function management() external view returns (address);
-
-    /**
-     * View the guardian address of the Vault to assert privileged functions
-     * can only be called by guardian. The Strategy serves the Vault, so it
-     * is subject to guardian defined by the Vault.
-     */
-    function guardian() external view returns (address);
-}
-
+import { IVault } from './Interfaces/IVault.sol';
+import { Strategy } from './Interfaces/IStrategy.sol';
 /**
  * This interface is here for the keeper bot to use.
  */
-interface StrategyAPI {
-    function name() external view returns (string memory);
-
-    function vault() external view returns (address);
-
-    function underlying() external view returns (address);
-
-    function apiVersion() external pure returns (string memory);
-
-    function keeper() external view returns (address);
-
-    function isActive() external view returns (bool);
-
-    function delegatedAssets() external view returns (uint256);
-
-    function estimatedTotalAssets() external view returns (uint256);
-
-    function tendTrigger(uint256 callCost) external view returns (bool);
-
-    function tend() external;
-
-    function harvestTrigger(uint256 callCost) external view returns (bool);
-
-    function harvest() external;
-
-    event Harvested(uint256 profit, uint256 loss, uint256 debtPayment, uint256 debtOutstanding);
-}
+interface StrategyAPI is Strategy {}
 
 /**
- * @title Yearn Base Strategy
- * @author yearn.finance
+ * @title Gimbal Base Strategy
+ * @author Schlagonia adapted from Yearn.Finance BaseStrategy.sol
  * @notice
  *  BaseStrategy implements all of the required functionality to interoperate
  *  closely with the Vault contract. This contract should be inherited and the
  *  abstract methods implemented to adapt the Strategy to the particular needs
  *  it has to create a return.
  *
- *  Of special interest is the relationship between `harvest()` and
- *  `vault.report()'. `harvest()` may be called simply because enough time has
- *  elapsed since the last report, and not because any funds need to be moved
- *  or positions adjusted. This is critical so that the Vault may maintain an
- *  accurate picture of the Strategy's performance. See  `vault.report()`,
- *  `harvest()`, and `harvestTrigger()` for further details.
  */
 
 abstract contract BaseStrategy {
@@ -180,15 +27,14 @@ abstract contract BaseStrategy {
     /**
      * @notice This Strategy's name.
      * @dev
-     *  You can use this field to manage the "version" of this Strategy, e.g.
-     *  `StrategySomethingOrOtherV1`. However, "API Version" is managed by
-     *  `apiVersion()` function above.
+     *  You can use this field to manage the identity of this Strategy, e.g.
+     *  `StrategySomethingOrOtherV1`. 
      * @return This Strategy's name.
      */
     function name() external view virtual returns (string memory);
 
     /// @notice Instance of the vault this strategy is assigned to
-    VaultAPI public vault;
+    IVault public vault;
 
     /// @notice instance of the asset that is being used
     IERC20 public underlying;
@@ -207,6 +53,8 @@ abstract contract BaseStrategy {
     event EmergencyExitEnabled();
 
     // modifiers
+    /// @notice Checks if called is owner
+    /// @dev keeping as a modifier depsite gas cost in case of futer Authorizations
     modifier onlyAuthorized() {
         _onlyAuthorized();
         _;
@@ -224,7 +72,7 @@ abstract contract BaseStrategy {
      * @notice
      *  Initializes the Strategy, this is called only once, when the
      *  contract is deployed.
-     * @dev `_vault` should implement `VaultAPI`.
+     * @dev `_vault` should implement `IVault`.
      * @param _vault The address of the Vault responsible for this Strategy.
      * @param _owner The address to assign as owner.
      */
@@ -234,13 +82,11 @@ abstract contract BaseStrategy {
     ) internal {
         require(address(underlying) == address(0), "Strategy already initialized");
 
-        vault = VaultAPI(_vault);
+        vault = IVault(_vault);
         underlying = IERC20(vault.UNDERLYING());
         SafeERC20.safeApprove(underlying, _vault, type(uint256).max); // Give Vault unlimited access (might save gas)
         owner = _owner;
-
     }
-
 
     /**
      * @notice
@@ -296,6 +142,13 @@ abstract contract BaseStrategy {
      */
     function estimatedTotalAssets() public view virtual returns (uint256);
 
+    /// @notice Returns the total amount of debt the Strategy is currently allocated from the Vault
+    /// @return The amount the strategy owes the vault in Underlying
+    function currentDebt() public view returns(uint256) {
+        IVault.StrategyData memory data = vault.getStrategyData(Strategy(address(this)));
+        return data.balance;
+    }
+
     /*
      * @notice
      *  Provide an indication of whether this strategy is currently "active"
@@ -305,7 +158,7 @@ abstract contract BaseStrategy {
      * @return True if the strategy is actively managing a position.
      */
     function isActive() public view returns (bool) {
-        return vault.strategies(address(this)).debtRatio > 0 || estimatedTotalAssets() > 0;
+        return currentDebt() > 0 || estimatedTotalAssets() > 0;
     }
 
     /// @notice Deposit a specific amount of underlying tokens into the strategy.
@@ -325,23 +178,16 @@ abstract contract BaseStrategy {
     function _depositSome(uint256 _amount) internal virtual returns(uint256);
 
     
-    /**
-     * Liquidate everything and returns the amount that got freed.
-     * This function is used during emergency exit instead of `prepareReturn()` to
-     * liquidate all of the Strategy's positions back to the Vault.
-     */
+    /// @notice This function is used during emergency exit to liquidate all of the Strategy's positions back to the Underlying.
+    /// @dev is only called during after the emercentExit is set to True
+    function liquidateAllPositions() internal virtual;
 
-    function liquidateAllPositions() internal virtual returns (uint256 _amountFreed);
-
-    /**
-     * @notice
-     *  Withdraws `_amountNeeded` to `vault`.
-     *
-     *  This may only be called by the Vault.
-     * @param _amountNeeded How much `underlying` to withdraw.
-     * @return _error error code, or 0 if the withdraw was successful.
-     * @return amountFreed Actual amount freed
-     */
+    
+    /// @notice Withdraws `_amountNeeded` to `vault`.
+    /// @dev This may only be called by the Vault.
+    /// @param _amountNeeded How much `underlying` to withdraw.
+    /// @return _error error code, or 0 if the withdraw was successful.
+    /// @return amountFreed Actual amount freed
     function withdraw(uint256 _amountNeeded) external returns (uint256 _error, uint256 amountFreed) {
         require(msg.sender == address(vault), "!vault");
         // Liquidate as much as possible to `underlying`, up to `_amountNeeded`
@@ -380,7 +226,7 @@ abstract contract BaseStrategy {
      */
     function migrate(address _newStrategy) external {
         require(msg.sender == address(vault));
-        require(BaseStrategy(_newStrategy).vault() == vault);
+        require(Strategy(_newStrategy).vault() == address(vault));
         prepareMigration(_newStrategy);
         SafeERC20.safeTransfer(underlying, _newStrategy, underlying.balanceOf(address(this)));
     }
@@ -397,7 +243,7 @@ abstract contract BaseStrategy {
      */
     function setEmergencyExit() external onlyAuthorized {
         emergencyExit = true;
-        vault.revokeStrategy();
+        liquidateAllPositions();
 
         emit EmergencyExitEnabled();
     }
