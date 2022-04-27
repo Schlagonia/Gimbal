@@ -13,14 +13,15 @@ contract Bridgerton is Auth {
     /// @notice Type variable to pass in to router per Stargate Docs
     uint8 public constant TYPE_SWAP_REMOTE = 1;
 
-    /// @notice PID repersenting the Underlying per Stargate Docs
-    uint256 PID;
+    /// @notice Mapping to retrive the PID based on the address of the token
+    mapping (address => uint256) public pids;
 
     /// @notice Address of Stargate Router on this chain
     address public stargateRouter;
 
-    /// @notice Address of the Vault that is allowed to call the contract
-    address public vault;
+    /// @notice Mapping of the Vaults that are allowed to call the contract
+    /// returns true if they have been allowed or false otherwise
+    mapping (address => bool) public vaults;
 
     /// @notice Variables to calculate Min amount welll accept to be recieved. i.e. Slippage 
     uint256 slippageProtectionOut = 50; //out of 10000. 50 = 0.5%
@@ -44,22 +45,29 @@ contract Bridgerton is Auth {
     constructor(
         address _stargateRouter
     ) Auth(Auth(msg.sender).owner(), Auth(msg.sender).authority()) {
+     
         stargateRouter = _stargateRouter;
-        //Set th PID for underlying token. Currently 1 for USDC
-        PID = 1;
     }
 
-    /// @notice Sets the Vault for this Router. 
+    /// @notice Changes the status of whether or not a vault can call the swap function. 
     /// @param _vault address of the Vault
     function setVault(address _vault) external requiresAuth{
         require(_vault != address(0));
-        vault = vault;
+        bool current = vaults[_vault];
+        vaults[_vault] = !current;
+    }
+
+    /// @notice Used to add a new asset or change a current one
+    /// @param _address Address of a supported token for this chain
+    /// @param _pid Associated stargate PID for the token
+    function addAsset(address _address, uint256 _pid) external requiresAuth {
+        pids[_address] = _pid;
     }
 
     /// @notice Updates the stargate Router used for cross chain swaps
     /// @param _router The new Stargate Router Address
     function _changeStargateRouter(address _router) external requiresAuth  {
-        require(_router != address(0), 'Must be validly address');
+        require(_router != address(0), 'Must be valid address');
         stargateRouter = _router;
     }
 
@@ -70,27 +78,23 @@ contract Bridgerton is Auth {
         slippageProtectionOut = _slippage;
     }
 
-    /// @notice Updates the PID for the Underlying asset
-    /// @param _pid New PID for the underlying token
-    function _setPid(uint256 _pid) external requiresAuth  {
-        PID = _pid;
-    }
-
     /// @notice Function for external Account or Keeper to call to estimate cross chain Gas fee
     /// @param _dstChainId ID of chain we are swapping to
+    /// @param _toAddress Address of the vault that we want to swap on behalf of
     /// @param _vaultTo The Strategy that the receiving Vault should send funds to
     function _externalGetSwapFee(
-        uint16 _dstChainId, 
+        uint16 _dstChainId,
+        address _toAddress, 
         address _vaultTo
     ) external view returns(uint256) {
 
-        bytes memory _toAddress = abi.encodePacked(address(this));
+        bytes memory toAddress = abi.encodePacked(_toAddress);
         bytes memory _data =  abi.encodePacked(_vaultTo);
 
         (uint256 nativeFee, ) = IStargateRouter(stargateRouter).quoteLayerZeroFee(
             _dstChainId, 
             TYPE_SWAP_REMOTE, 
-            _toAddress, 
+            toAddress, 
             _data, 
             IStargateRouter.lzTxObj(0, 0, "0x")
         );
@@ -125,27 +129,28 @@ contract Bridgerton is Auth {
         return (_amountIn * (DENOMINATOR - slippageProtectionOut)) / DENOMINATOR;
     }
 
-    /// @notice Initiates a Cross chain to the dstChain
-    /// @dev Must be called by contract owner or Keeper. Calls to Bridgerton Function.
+    /// @notice Initiates a Cross chain tx to the dstChain
+    /// @dev Must be called by a vault that has been previously approved.
     /// @param chainId The Stargate ChainId for the destination chain
-    /// @param _asset Asset that should be swapped and recieved. Should be UNDERLYING
+    /// @param _asset Asset that should be swapped and recieved.
     /// @param _amount The amount of underlying that should be swapped
-    /// @param _vaultTo The Strategy that the receiving Vault should send funds to
-    function _swap(
+    /// @param _vaultTo The Strategy that the receiving Vault should send funds to if applicable
+    function swap(
         uint16 chainId, 
         address _asset, 
         uint256 _amount,
         address _vaultTo
     ) external payable returns(bool) {
-        require(msg.sender == vault, "Get your own contract bruh");
+        require(vaults[msg.sender] == true, "Get your own contract bruh");
         require(IERC20(_asset).balanceOf(address(this)) >= _amount, "Contract doesn't Hold enough tokens");
 
-        uint256 pid = PID;
+        uint256 pid =pids[_asset];
+        require(pid != 0, "Asset Not Added");
 
         uint256 qty = _amount;
         uint256 amountOutMin = _getMinOut(_amount);
 
-        bytes memory _toAddress = abi.encodePacked(address(this));
+        bytes memory _toAddress = abi.encodePacked(msg.sender);
         bytes memory data =  abi.encodePacked(_vaultTo);
 
         require(msg.value >= _getSwapFee(chainId, _toAddress, data), "Not enough funds for gas");
@@ -156,7 +161,7 @@ contract Bridgerton is Auth {
             chainId,                         // send to Fuji (use LayerZero chainId)
             pid,                             // source pool id
             pid,                             // dest pool id                 
-            payable(address(this)),          // refund adddress. extra gas (if any) is returned to this address
+            payable(tx.origin),          // refund adddress. extra gas (if any) is returned to this address
             qty,                             // quantity to swap
             amountOutMin,                    // the min qty you would accept on the destination
             IStargateRouter.lzTxObj(0, 0, "0x"),  // 0 additional gasLimit increase, 0 airdrop, at 0x address
@@ -191,5 +196,14 @@ contract Bridgerton is Auth {
             amountLD
         );
     }
+    
+    /// @notice Sweep function in case any tokens get stuck in the contract
+    /// @param _asset Address of the token to sweep
+    function sweep(address _asset) external requiresAuth {
+        IERC20(_asset).safeTransfer(owner, IERC20(_asset).balanceOf(address(this)));
+    }
+    
+    /// @dev Required for the Vault to receive unwrapped ETH.
+    receive() external payable {}
 
 }

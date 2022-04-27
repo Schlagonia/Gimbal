@@ -13,9 +13,23 @@ import {ERC20} from "./Solmate/tokens/ERC20.sol";
 
 import {Strategy} from './Interfaces/IStrategy.sol';
 
-import "./Bridgerton.sol";
+interface IBridgerton {
+    /// @notice Initiates a Cross chain tx to the dstChain
+    /// @dev Must be called by a vault that has been previously approved.
+    /// @param chainId The Stargate ChainId for the destination chain
+    /// @param _asset Asset that should be swapped and recieved.
+    /// @param _amount The amount of underlying that should be swapped
+    /// @param _vaultTo The Strategy that the receiving Vault should send funds to if applicable
+    /// @return Will return True if transaction does not revert.
+    function swap(
+        uint16 chainId, 
+        address _asset, 
+        uint256 _amount,
+        address _vaultTo
+    ) external payable returns(bool);
+}
 
-contract GimbalVault is Bridgerton, ERC4626, Auth {
+contract GimbalVault is ERC4626, Auth {
     using SafeCastLib for uint256;
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
@@ -41,21 +55,19 @@ contract GimbalVault is Bridgerton, ERC4626, Auth {
 
     /// @notice Creates a new Vault that accepts a specific underlying token.
     /// @param _UNDERLYING The ERC20 compliant token the Vault should accept.
-    /// @param _stargateRouter The address of the router for Stragate
     /// @param _keeper The address to set ass keeper
     constructor(
         ERC20 _UNDERLYING,
-        address _keeper,
-        address _stargateRouter
+        address _bridgerton,
+        address _keeper
         )
-        Bridgerton(_stargateRouter ) 
         ERC4626(
             // Underlying token
             _UNDERLYING,
-            // ex: Rari Dai Stablecoin Vault
-            string(abi.encodePacked("Gimbal ", _UNDERLYING.name(), " Vault")),
-            // ex: rvDAI
-            string(abi.encodePacked("gv", _UNDERLYING.symbol()))
+            // ex: Savor Dai Stablecoin Vault
+            string(abi.encodePacked("Savor ", _UNDERLYING.name(), " Vault")),
+            // ex: svDAI
+            string(abi.encodePacked("sv", _UNDERLYING.symbol()))
         )
         Auth(Auth(msg.sender).owner(), Auth(msg.sender).authority())
     {
@@ -63,6 +75,7 @@ contract GimbalVault is Bridgerton, ERC4626, Auth {
 
         BASE_UNIT = 10**decimals;
 
+        Bridgerton = IBridgerton(_bridgerton);
         keeper = _keeper;
 
         // Prevent minting of rvTokens until
@@ -275,49 +288,67 @@ contract GimbalVault is Bridgerton, ERC4626, Auth {
                         Bridgerton LOGIC
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Updates the stargate Router used for cross chain swaps
-    /// @dev Must be called by contract owner. Calls to Bridgerton Function.
-    /// @param _router The new Stargate Router Address
-    function changeStargateRouter(address _router) external requiresAuth  {
-        _changeStargateRouter(_router);
-    }
+    /// @notice the instance of the current Bridgerton contract we will use
+    IBridgerton Bridgerton;
 
-    /// @notice Updates the allowed slippage for cross chain swaps
-    /// @dev Must be called by contract owner. Calls to Bridgerton Function.
-    /// @param _slippage The new slippage param
-    function setSlippageProtectionOut(uint256 _slippage) external requiresAuth  {
-        _setSlippageProtectionOut(_slippage);
-    }
+    /// @notice Emitted when the Funds are received by this contract from Stargate router.
+    /// @param _chainId The chain from which the funds were sent.
+    /// @param _srcAddress The address the sent the transaction. Should be the same as address(this).
+    /// @param _token Address of the token that was received. Should Be UNDERLYING
+    /// @param amountLD Amount of token received
+    event sgReceived(
+        uint16 _chainId,
+        bytes _srcAddress,
+        address _token,
+        uint256 amountLD
+    );
 
-    /// @notice Updates the PID for the Underlying asset
-    /// @dev Must be called by contract owner. Calls to Bridgerton Function.
-    /// @param _pid New PID for the underlying token
-    function setPid(uint256 _pid) external requiresAuth  {
-        _setPid(_pid);
-    }
-
-    /// @notice Function forexternal Account or Keeper to call to estimate cross chain Gas fee
-    /// @dev Must be called by contract owner or Keeper. Calls to Bridgerton Function.
-    /// @param _dstChainId ID of chain we are swapping to
-    /// @param _vaultTo The Strategy that the receiving Vault should send funds to
-    function externalGetSwapFee(
-        uint16 _dstChainId, 
-        address _vaultTo
-    ) external view onlyKeeper returns(uint256) {
-        return _externalGetSwapFee(_dstChainId, _vaultTo);
-    }
-
-    /// @notice Initiates a Cross chain to the dstChain
-    /// @dev Must be called by contract owner or Keeper. Calls to Bridgerton Function.
-    /// @param chainId The Stargate ChainId for the destination chain
-    /// @param _amount The amount of underlying that should be swapped
-    /// @param _vaultTo The Strategy that the receiving Vault should send funds to
+    /// @notice Function to be called by keeper to initiate a cross chain swap
+    /// @dev The function will transfer funds from the vault to Bridgerton to minimize gas usage for Bridgerton
+    ///         so that the gas estimate check is accurate
+    ///       Sends the full gas value in this contract and any extra is refunded to the tx.origin.
+    /// @param chainId The id of chain we are swapping to
+    /// @param _amount The amount of underlying to swap
+    /// @param _vaultTo The strategy the receving vault should deposit in if applicable
     function swap(
         uint16 chainId, 
         uint256 _amount,
         address _vaultTo
-    ) external payable requiresAuth returns(bool) {
-        return _swap(chainId, address(UNDERLYING), _amount, _vaultTo);
+    ) external payable onlyKeeper{
+        require(UNDERLYING.balanceOf(address(this)) >= _amount, "Not enough funds for that swap");
+
+        UNDERLYING.safeTransfer(address(Bridgerton), _amount);
+
+        Bridgerton.swap{value:address(this).balance}(
+             chainId, 
+             address(UNDERLYING), 
+             _amount,
+            _vaultTo
+        );
+    }
+
+    /// @notice function for the stargate router to call when funds are being received from another chain
+    /// @param _chainId Chain from which the assets came
+    /// @param _srcAddress Address who initiated the transfer. Should be address(this)
+    /// @param _nonce Nonce the transaction occured on
+    /// @param _token Address of token that was transferred. Should be UNDERLYING
+    /// @param amountLD The amount that was received
+    /// @param payload Encoded payload with any instructions sent over
+    function sgReceive(
+        uint16 _chainId,
+        bytes memory _srcAddress,
+        uint256 _nonce,
+        address _token,
+        uint256 amountLD,
+        bytes memory payload
+    ) external {
+        
+        emit sgReceived(
+            _chainId,
+            _srcAddress,
+            _token,
+            amountLD
+        );
     }
 
     /*///////////////////////////////////////////////////////////////
