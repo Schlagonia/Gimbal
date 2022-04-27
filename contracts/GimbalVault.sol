@@ -11,23 +11,8 @@ import {FixedPointMathLib} from "./Solmate/utils/FixedPointMathLib.sol";
 import {WETH} from "./Solmate/tokens/WETH.sol";
 import {ERC20} from "./Solmate/tokens/ERC20.sol";
 
-import {Strategy} from './Interfaces/IStrategy.sol';
-
-interface IBridgerton {
-    /// @notice Initiates a Cross chain tx to the dstChain
-    /// @dev Must be called by a vault that has been previously approved.
-    /// @param chainId The Stargate ChainId for the destination chain
-    /// @param _asset Asset that should be swapped and recieved.
-    /// @param _amount The amount of underlying that should be swapped
-    /// @param _vaultTo The Strategy that the receiving Vault should send funds to if applicable
-    /// @return Will return True if transaction does not revert.
-    function swap(
-        uint16 chainId, 
-        address _asset, 
-        uint256 _amount,
-        address _vaultTo
-    ) external payable returns(bool);
-}
+import {Strategy} from "./Interfaces/IStrategy.sol";
+import {IBridgerton} from "./Interfaces/IBridgerton.sol";
 
 contract GimbalVault is ERC4626, Auth {
     using SafeCastLib for uint256;
@@ -129,7 +114,10 @@ contract GimbalVault is ERC4626, Auth {
     /// @notice Emitted when the harvest delay is scheduled to be updated next harvest.
     /// @param user The authorized user who triggered the update.
     /// @param newHarvestDelay The scheduled updated harvest delay.
-    event HarvestDelayUpdateScheduled(address indexed user, uint64 newHarvestDelay);
+    event HarvestDelayUpdateScheduled(
+        address indexed user,
+        uint64 newHarvestDelay
+    );
 
     /// @notice The period in seconds during which multiple harvests can occur
     /// regardless if they are taking place before the harvest delay has elapsed.
@@ -162,7 +150,7 @@ contract GimbalVault is ERC4626, Auth {
         require(_newKeeper != address(0), "Invalid Address");
 
         // Update the keeper.
-       keeper = _newKeeper;
+        keeper = _newKeeper;
 
         emit KeeperUpdated(keeper);
     }
@@ -217,11 +205,17 @@ contract GimbalVault is ERC4626, Auth {
     /// @notice Emitted when the target float percentage is updated.
     /// @param user The authorized user who triggered the update.
     /// @param newTargetFloatPercent The new target float percentage.
-    event TargetFloatPercentUpdated(address indexed user, uint256 newTargetFloatPercent);
+    event TargetFloatPercentUpdated(
+        address indexed user,
+        uint256 newTargetFloatPercent
+    );
 
     /// @notice Set a new target float percentage.
     /// @param newTargetFloatPercent The new target float percentage.
-    function setTargetFloatPercent(uint256 newTargetFloatPercent) external requiresAuth {
+    function setTargetFloatPercent(uint256 newTargetFloatPercent)
+        external
+        requiresAuth
+    {
         // A target float percentage over 100% doesn't make sense.
         require(newTargetFloatPercent <= 1e18, "TARGET_TOO_HIGH");
 
@@ -311,7 +305,7 @@ contract GimbalVault is ERC4626, Auth {
     /// @param _amount The amount of underlying to swap
     /// @param _vaultTo The strategy the receving vault should deposit in if applicable
     function swap(
-        uint16 chainId, 
+        uint16 chainId,
         uint256 _amount,
         address _vaultTo
     ) external payable onlyKeeper{
@@ -372,13 +366,16 @@ contract GimbalVault is ERC4626, Auth {
         // If the amount is greater than the float, withdraw from strategies.
         if (underlyingAmount > float) {
             // Compute the amount needed to reach our target float percentage.
-            uint256 floatMissingForTarget = (totalAssets() - underlyingAmount).mulWadDown(targetFloatPercent);
+            uint256 floatMissingForTarget = (totalAssets() - underlyingAmount)
+                .mulWadDown(targetFloatPercent);
 
             // Compute the bare minimum amount we need for this withdrawal.
             uint256 floatMissingForWithdrawal = underlyingAmount - float;
 
             // Pull enough to cover the withdrawal and reach our target float percentage.
-            pullFromWithdrawalStack(floatMissingForWithdrawal + floatMissingForTarget);
+            pullFromWithdrawalStack(
+                floatMissingForWithdrawal + floatMissingForTarget
+            );
         }
     }
 
@@ -388,7 +385,12 @@ contract GimbalVault is ERC4626, Auth {
 
     /// @notice Calculates the total amount of underlying tokens the Vault holds.
     /// @return totalUnderlyingHeld The total amount of underlying tokens the Vault holds.
-    function totalAssets() public view override returns (uint256 totalUnderlyingHeld) {
+    function totalAssets()
+        public
+        view
+        override
+        returns (uint256 totalUnderlyingHeld)
+    {
         unchecked {
             // Cannot underflow as locked profit can't exceed total strategy holdings.
             totalUnderlyingHeld = totalStrategyHoldings - lockedProfit();
@@ -415,7 +417,10 @@ contract GimbalVault is ERC4626, Auth {
 
             // Compute how much profit remains locked based on the last harvest and harvest delay.
             // It's impossible for the previous harvest to be in the future, so this will never underflow.
-            return maximumLockedProfit - (maximumLockedProfit * (block.timestamp - previousHarvest)) / harvestInterval;
+            return
+                maximumLockedProfit -
+                (maximumLockedProfit * (block.timestamp - previousHarvest)) /
+                harvestInterval;
         }
     }
 
@@ -446,7 +451,10 @@ contract GimbalVault is ERC4626, Auth {
             lastHarvestWindowStart = uint64(block.timestamp);
         } else {
             // We know this harvest is not the first in the window so we need to ensure it's within it.
-            require(block.timestamp <= lastHarvestWindowStart + harvestWindow, "BAD_HARVEST_TIME");
+            require(
+                block.timestamp <= lastHarvestWindowStart + harvestWindow,
+                "BAD_HARVEST_TIME"
+            );
         }
 
         // Get the Vault's current total strategy holdings.
@@ -472,11 +480,15 @@ contract GimbalVault is ERC4626, Auth {
             uint256 balanceThisHarvest = strategy.estimatedTotalAssets();
 
             // Update the strategy's stored balance. Cast overflow is unrealistic.
-            getStrategyData[strategy].balance = balanceThisHarvest.safeCastTo248();
+            getStrategyData[strategy].balance = balanceThisHarvest
+                .safeCastTo248();
 
             // Increase/decrease newTotalStrategyHoldings based on the profit/loss registered.
             // We cannot wrap the subtraction in parenthesis as it would underflow if the strategy had a loss.
-            newTotalStrategyHoldings = newTotalStrategyHoldings + balanceThisHarvest - balanceLastHarvest;
+            newTotalStrategyHoldings =
+                newTotalStrategyHoldings +
+                balanceThisHarvest -
+                balanceLastHarvest;
 
             unchecked {
                 // Update the total profit accrued while counting losses as zero profit.
@@ -492,10 +504,14 @@ contract GimbalVault is ERC4626, Auth {
 
         // If we accrued any fees, mint an equivalent amount of rvTokens.
         // Authorized users can claim the newly minted rvTokens via claimFees.
-        _mint(address(this), feesAccrued.mulDivDown(BASE_UNIT, convertToAssets(BASE_UNIT)));
+        _mint(
+            address(this),
+            feesAccrued.mulDivDown(BASE_UNIT, convertToAssets(BASE_UNIT))
+        );
 
         // Update max unlocked profit based on any remaining locked profit plus new profit.
-        maxLockedProfit = (lockedProfit() + totalProfitAccrued - feesAccrued).safeCastTo128();
+        maxLockedProfit = (lockedProfit() + totalProfitAccrued - feesAccrued)
+            .safeCastTo128();
 
         // Set strategy holdings to our new total.
         totalStrategyHoldings = newTotalStrategyHoldings;
@@ -529,18 +545,29 @@ contract GimbalVault is ERC4626, Auth {
     /// @param user The authorized user who triggered the deposit.
     /// @param strategy The strategy that was deposited into.
     /// @param underlyingAmount The amount of underlying tokens that were deposited.
-    event StrategyDeposit(address indexed user, Strategy indexed strategy, uint256 underlyingAmount);
+    event StrategyDeposit(
+        address indexed user,
+        Strategy indexed strategy,
+        uint256 underlyingAmount
+    );
 
     /// @notice Emitted after the Vault withdraws funds from a strategy contract.
     /// @param user The authorized user who triggered the withdrawal.
     /// @param strategy The strategy that was withdrawn from.
     /// @param underlyingAmount The amount of underlying tokens that were withdrawn.
-    event StrategyWithdrawal(address indexed user, Strategy indexed strategy, uint256 underlyingAmount);
+    event StrategyWithdrawal(
+        address indexed user,
+        Strategy indexed strategy,
+        uint256 underlyingAmount
+    );
 
     /// @notice Deposit a specific amount of float into a trusted strategy.
     /// @param strategy The trusted strategy to deposit into.
     /// @param underlyingAmount The amount of underlying tokens in float to deposit.
-    function depositIntoStrategy(Strategy strategy, uint256 underlyingAmount) external requiresAuth {
+    function depositIntoStrategy(Strategy strategy, uint256 underlyingAmount)
+        external
+        requiresAuth
+    {
         // A strategy must be trusted before it can be deposited into.
         require(getStrategyData[strategy].trusted, "UNTRUSTED_STRATEGY");
 
@@ -550,7 +577,8 @@ contract GimbalVault is ERC4626, Auth {
         unchecked {
             // Without this the next harvest would count the deposit as profit.
             // Cannot overflow as the balance of one strategy can't exceed the sum of all.
-            getStrategyData[strategy].balance += underlyingAmount.safeCastTo248();
+            getStrategyData[strategy].balance += underlyingAmount
+                .safeCastTo248();
         }
 
         emit StrategyDeposit(msg.sender, strategy, underlyingAmount);
@@ -560,14 +588,16 @@ contract GimbalVault is ERC4626, Auth {
 
         // Deposit into the strategy and revert if it returns an error code.
         require(strategy.deposit(underlyingAmount) == 0, "deposit_FAILED");
-
     }
 
     /// @notice Withdraw a specific amount of underlying tokens from a strategy.
     /// @param strategy The strategy to withdraw from.
     /// @param underlyingAmount  The amount of underlying tokens to withdraw.
     /// @dev Withdrawing from a strategy will not remove it from the withdrawal stack.
-    function withdrawFromStrategy(Strategy strategy, uint256 underlyingAmount) external requiresAuth {
+    function withdrawFromStrategy(Strategy strategy, uint256 underlyingAmount)
+        external
+        requiresAuth
+    {
         // A strategy must be trusted before it can be withdrawn from.
         require(getStrategyData[strategy].trusted, "UNTRUSTED_STRATEGY");
 
@@ -632,17 +662,26 @@ contract GimbalVault is ERC4626, Auth {
     /// @notice Emitted when a strategy is pushed to the withdrawal stack.
     /// @param user The authorized user who triggered the push.
     /// @param pushedStrategy The strategy pushed to the withdrawal stack.
-    event WithdrawalStackPushed(address indexed user, Strategy indexed pushedStrategy);
+    event WithdrawalStackPushed(
+        address indexed user,
+        Strategy indexed pushedStrategy
+    );
 
     /// @notice Emitted when a strategy is popped from the withdrawal stack.
     /// @param user The authorized user who triggered the pop.
     /// @param poppedStrategy The strategy popped from the withdrawal stack.
-    event WithdrawalStackPopped(address indexed user, Strategy indexed poppedStrategy);
+    event WithdrawalStackPopped(
+        address indexed user,
+        Strategy indexed poppedStrategy
+    );
 
     /// @notice Emitted when the withdrawal stack is updated.
     /// @param user The authorized user who triggered the set.
     /// @param replacedWithdrawalStack The new withdrawal stack.
-    event WithdrawalStackSet(address indexed user, Strategy[] replacedWithdrawalStack);
+    event WithdrawalStackSet(
+        address indexed user,
+        Strategy[] replacedWithdrawalStack
+    );
 
     /// @notice Emitted when an index in the withdrawal stack is replaced.
     /// @param user The authorized user who triggered the replacement.
@@ -713,15 +752,19 @@ contract GimbalVault is ERC4626, Auth {
             }
 
             // We want to pull as much as we can from the strategy, but no more than we need.
-            uint256 amountToPull = strategyBalance > amountLeftToPull ? amountLeftToPull : strategyBalance;
+            uint256 amountToPull = strategyBalance > amountLeftToPull
+                ? amountLeftToPull
+                : strategyBalance;
 
             unchecked {
                 // Compute the balance of the strategy that will remain after we withdraw.
                 // Cannot underflow as we cap the amount to pull at the strategy's balance.
-                uint256 strategyBalanceAfterWithdrawal = strategyBalance - amountToPull;
+                uint256 strategyBalanceAfterWithdrawal = strategyBalance -
+                    amountToPull;
 
                 // Without this the next harvest would count the withdrawal as a loss.
-                getStrategyData[strategy].balance = strategyBalanceAfterWithdrawal.safeCastTo248();
+                getStrategyData[strategy]
+                    .balance = strategyBalanceAfterWithdrawal.safeCastTo248();
 
                 // Adjust our goal based on how much we can pull from the strategy.
                 // Cannot underflow as we cap the amount to pull at the amount left to pull.
@@ -750,7 +793,6 @@ contract GimbalVault is ERC4626, Auth {
             // Cannot underflow as the balances of some strategies cannot exceed the sum of all.
             totalStrategyHoldings -= underlyingAmount;
         }
-
     }
 
     /// @notice Pushes a single strategy to front of the withdrawal stack.
@@ -759,7 +801,10 @@ contract GimbalVault is ERC4626, Auth {
     /// filtered out when encountered at withdrawal time, not validated upfront.
     function pushToWithdrawalStack(Strategy strategy) external requiresAuth {
         // Ensure pushing the strategy will not cause the stack exceed its limit.
-        require(withdrawalStack.length < MAX_WITHDRAWAL_STACK_SIZE, "STACK_FULL");
+        require(
+            withdrawalStack.length < MAX_WITHDRAWAL_STACK_SIZE,
+            "STACK_FULL"
+        );
 
         // Push the strategy to the front of the stack.
         withdrawalStack.push(strategy);
@@ -784,7 +829,10 @@ contract GimbalVault is ERC4626, Auth {
     /// @param newStack The new withdrawal stack.
     /// @dev Strategies that are untrusted, duplicated, or have no balance are
     /// filtered out when encountered at withdrawal time, not validated upfront.
-    function setWithdrawalStack(Strategy[] calldata newStack) external requiresAuth {
+    function setWithdrawalStack(Strategy[] calldata newStack)
+        external
+        requiresAuth
+    {
         // Ensure the new stack is not larger than the maximum stack size.
         require(newStack.length <= MAX_WITHDRAWAL_STACK_SIZE, "STACK_TOO_BIG");
 
@@ -799,21 +847,34 @@ contract GimbalVault is ERC4626, Auth {
     /// @param replacementStrategy The strategy to override the index with.
     /// @dev Strategies that are untrusted, duplicated, or have no balance are
     /// filtered out when encountered at withdrawal time, not validated upfront.
-    function replaceWithdrawalStackIndex(uint256 index, Strategy replacementStrategy) external requiresAuth {
+    function replaceWithdrawalStackIndex(
+        uint256 index,
+        Strategy replacementStrategy
+    ) external requiresAuth {
         // Get the (soon to be) replaced strategy.
         Strategy replacedStrategy = withdrawalStack[index];
 
         // Update the index with the replacement strategy.
         withdrawalStack[index] = replacementStrategy;
 
-        emit WithdrawalStackIndexReplaced(msg.sender, index, replacedStrategy, replacementStrategy);
+        emit WithdrawalStackIndexReplaced(
+            msg.sender,
+            index,
+            replacedStrategy,
+            replacementStrategy
+        );
     }
 
     /// @notice Moves the strategy at the tip of the stack to the specified index and pop the tip off the stack.
     /// @param index The index of the strategy in the withdrawal stack to replace with the tip.
-    function replaceWithdrawalStackIndexWithTip(uint256 index) external requiresAuth {
+    function replaceWithdrawalStackIndexWithTip(uint256 index)
+        external
+        requiresAuth
+    {
         // Get the (soon to be) previous tip and strategy we will replace at the index.
-        Strategy previousTipStrategy = withdrawalStack[withdrawalStack.length - 1];
+        Strategy previousTipStrategy = withdrawalStack[
+            withdrawalStack.length - 1
+        ];
         Strategy replacedStrategy = withdrawalStack[index];
 
         // Replace the index specified with the tip of the stack.
@@ -822,13 +883,21 @@ contract GimbalVault is ERC4626, Auth {
         // Remove the now duplicated tip from the array.
         withdrawalStack.pop();
 
-        emit WithdrawalStackIndexReplacedWithTip(msg.sender, index, replacedStrategy, previousTipStrategy);
+        emit WithdrawalStackIndexReplacedWithTip(
+            msg.sender,
+            index,
+            replacedStrategy,
+            previousTipStrategy
+        );
     }
 
     /// @notice Swaps two indexes in the withdrawal stack.
     /// @param index1 One index involved in the swap
     /// @param index2 The other index involved in the swap.
-    function swapWithdrawalStackIndexes(uint256 index1, uint256 index2) external requiresAuth {
+    function swapWithdrawalStackIndexes(uint256 index1, uint256 index2)
+        external
+        requiresAuth
+    {
         // Get the (soon to be) new strategies at each index.
         Strategy newStrategy2 = withdrawalStack[index1];
         Strategy newStrategy1 = withdrawalStack[index2];
@@ -837,7 +906,13 @@ contract GimbalVault is ERC4626, Auth {
         withdrawalStack[index1] = newStrategy1;
         withdrawalStack[index2] = newStrategy2;
 
-        emit WithdrawalStackIndexesSwapped(msg.sender, index1, index2, newStrategy1, newStrategy2);
+        emit WithdrawalStackIndexesSwapped(
+            msg.sender,
+            index1,
+            index2,
+            newStrategy1,
+            newStrategy2
+        );
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -899,4 +974,3 @@ contract GimbalVault is ERC4626, Auth {
     /// @dev Required for the Vault to receive unwrapped ETH.
     receive() external payable {}
 }
-    
