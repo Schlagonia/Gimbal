@@ -1,14 +1,17 @@
 const { ethers } = require("hardhat");
 const hre = require("hardhat");
-const { networks } = require("../hardhat.config")
 const { impersonateAddress } = require("../helpers/misc-utils");
+
 //must create a .env file with the variable PRIVATE_KEY. Usage: process.env.PRIVATE_KEY
 require('dotenv').config()
+
 
 async function main() {
 
   const signer = await impersonateAddress(process.env.PRIVATE_KEY);
   const Vault = await ethers.getContractFactory("GimbalVault");
+
+
 
   //Deploy the vault
   let vault = await Vault.connect(signer).deploy(
