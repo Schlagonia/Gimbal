@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.0;
 
-import { SafeERC20, IERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
-import { IStargateRouter } from "./Interfaces/Stargate/IStargateRouter.sol";
+import {IStargateRouter} from "./Interfaces/Stargate/IStargateRouter.sol";
 
-contract Bridgerton{
+contract Bridgerton {
     using SafeERC20 for IERC20;
     using Address for address;
 
@@ -18,9 +18,9 @@ contract Bridgerton{
     /// @notice Address of Stargate Router on this chain
     address public stargateRouter;
 
-    /// @notice Variables to calculate Min amount welll accept to be recieved. i.e. Slippage 
+    /// @notice Variables to calculate Min amount welll accept to be recieved. i.e. Slippage
     uint256 slippageProtectionOut = 50; //out of 10000. 50 = 0.5%
-    uint256 constant DENOMINATOR = 10_000;
+    uint256 constant DENOMINATOR = 10000;
 
     /// @notice Emitted when the Funds are received by this contract from Stargate router.
     /// @param _chainId The chain from which the funds were sent.
@@ -37,19 +37,16 @@ contract Bridgerton{
     /// @notice Called when vault is deployed. Sets router and PID for Underlying
     /// @dev PID needs to be adjusted before deployment for what chain and asset is being deployed per Stargate Docs
     /// @param _stargateRouter Address of the router
-    constructor(
-        address _stargateRouter
-    ) {
+    constructor(address _stargateRouter) {
         stargateRouter = _stargateRouter;
         //Set th PID for underlying token. Currently 1 for USDC
         PID = 1;
-
     }
 
     /// @notice Updates the stargate Router used for cross chain swaps
     /// @param _router The new Stargate Router Address
-    function _changeStargateRouter(address _router) internal  {
-        require(_router != address(0), 'Must be validly address');
+    function _changeStargateRouter(address _router) internal {
+        require(_router != address(0), "Must be validly address");
         stargateRouter = _router;
     }
 
@@ -62,28 +59,29 @@ contract Bridgerton{
 
     /// @notice Updates the PID for the Underlying asset
     /// @param _pid New PID for the underlying token
-    function _setPid(uint256 _pid) internal  {
+    function _setPid(uint256 _pid) internal {
         PID = _pid;
     }
 
     /// @notice Function for external Account or Keeper to call to estimate cross chain Gas fee
     /// @param _dstChainId ID of chain we are swapping to
     /// @param _vaultTo The Strategy that the receiving Vault should send funds to
-    function _externalGetSwapFee(
-        uint16 _dstChainId, 
-        address _vaultTo
-    ) internal view returns(uint256) {
-
+    function _externalGetSwapFee(uint16 _dstChainId, address _vaultTo)
+        internal
+        view
+        returns (uint256)
+    {
         bytes memory _toAddress = abi.encodePacked(address(this));
-        bytes memory _data =  abi.encodePacked(_vaultTo);
+        bytes memory _data = abi.encodePacked(_vaultTo);
 
-        (uint256 nativeFee, ) = IStargateRouter(stargateRouter).quoteLayerZeroFee(
-            _dstChainId, 
-            TYPE_SWAP_REMOTE, 
-            _toAddress, 
-            _data, 
-            IStargateRouter.lzTxObj(0, 0, "0x")
-        );
+        (uint256 nativeFee, ) = IStargateRouter(stargateRouter)
+            .quoteLayerZeroFee(
+                _dstChainId,
+                TYPE_SWAP_REMOTE,
+                _toAddress,
+                _data,
+                IStargateRouter.lzTxObj(0, 0, "0x")
+            );
 
         return nativeFee;
     }
@@ -93,26 +91,27 @@ contract Bridgerton{
     /// @param _toAddress Encoded address for where assets are going. Should be address(this)
     /// @param _data Encoded payload for any info we are sending off chain
     function _getSwapFee(
-        uint16 _dstChainId, 
-        bytes memory _toAddress, 
+        uint16 _dstChainId,
+        bytes memory _toAddress,
         bytes memory _data
-    ) internal view returns(uint256) {
-
-        (uint256 nativeFee,) = IStargateRouter(stargateRouter).quoteLayerZeroFee(
-            _dstChainId, 
-            TYPE_SWAP_REMOTE, 
-            _toAddress, 
-            _data, 
-            IStargateRouter.lzTxObj(0, 0, "0x")
-        );  
+    ) internal view returns (uint256) {
+        (uint256 nativeFee, ) = IStargateRouter(stargateRouter)
+            .quoteLayerZeroFee(
+                _dstChainId,
+                TYPE_SWAP_REMOTE,
+                _toAddress,
+                _data,
+                IStargateRouter.lzTxObj(0, 0, "0x")
+            );
 
         return nativeFee;
     }
 
     /// @notice internal function to get min aount we will accept out of swap. i.e. slippage
     /// @param _amountIn Amount that we are sending in
-    function _getMinOut(uint256 _amountIn) internal view returns(uint256) {
-        return (_amountIn * (DENOMINATOR - slippageProtectionOut)) / DENOMINATOR;
+    function _getMinOut(uint256 _amountIn) internal view returns (uint256) {
+        return
+            (_amountIn * (DENOMINATOR - slippageProtectionOut)) / DENOMINATOR;
     }
 
     /// @notice Initiates a Cross chain to the dstChain
@@ -122,12 +121,15 @@ contract Bridgerton{
     /// @param _amount The amount of underlying that should be swapped
     /// @param _vaultTo The Strategy that the receiving Vault should send funds to
     function _swap(
-        uint16 chainId, 
-        address _asset, 
+        uint16 chainId,
+        address _asset,
         uint256 _amount,
         address _vaultTo
-    ) internal returns(bool) {
-        require(IERC20(_asset).balanceOf(address(this)) >= _amount, "Contract doesn't Hold enough tokens");
+    ) internal returns (bool) {
+        require(
+            IERC20(_asset).balanceOf(address(this)) >= _amount,
+            "Contract doesn't Hold enough tokens"
+        );
 
         uint256 pid = PID;
 
@@ -135,27 +137,30 @@ contract Bridgerton{
         uint256 amountOutMin = _getMinOut(_amount);
 
         bytes memory _toAddress = abi.encodePacked(address(this));
-        bytes memory data =  abi.encodePacked(_vaultTo);
+        bytes memory data = abi.encodePacked(_vaultTo);
 
-        require(msg.value >= _getSwapFee(chainId, _toAddress, data), "Not enough funds for gas");
+        require(
+            msg.value >= _getSwapFee(chainId, _toAddress, data),
+            "Not enough funds for gas"
+        );
 
         IERC20(_asset).approve(stargateRouter, qty);
 
-        IStargateRouter(stargateRouter).swap{value:msg.value}(
-            chainId,                         // send to Fuji (use LayerZero chainId)
-            pid,                             // source pool id
-            pid,                             // dest pool id                 
-            payable(address(this)),          // refund adddress. extra gas (if any) is returned to this address
-            qty,                             // quantity to swap
-            amountOutMin,                    // the min qty you would accept on the destination
-            IStargateRouter.lzTxObj(0, 0, "0x"),  // 0 additional gasLimit increase, 0 airdrop, at 0x address
-            _toAddress,    // the address to send the tokens to on the destination
-            data         // bytes param, if you wish to send additional payload you can abi.encode() them here
+        IStargateRouter(stargateRouter).swap{value: msg.value}(
+            chainId, // send to Fuji (use LayerZero chainId)
+            pid, // source pool id
+            pid, // dest pool id
+            payable(address(this)), // refund adddress. extra gas (if any) is returned to this address
+            qty, // quantity to swap
+            amountOutMin, // the min qty you would accept on the destination
+            IStargateRouter.lzTxObj(0, 0, "0x"), // 0 additional gasLimit increase, 0 airdrop, at 0x address
+            _toAddress, // the address to send the tokens to on the destination
+            data // bytes param, if you wish to send additional payload you can abi.encode() them here
         );
 
         return true;
     }
-    
+
     /// @notice function for the stargate router to call when funds are being received from another chain
     /// @param _chainId Chain from which the assets came
     /// @param _srcAddress Address who initiated the transfer. Should be address(this)
@@ -171,14 +176,6 @@ contract Bridgerton{
         uint256 amountLD,
         bytes memory payload
     ) external {
-        
-
-        emit sgReceived(
-            _chainId,
-            _srcAddress,
-            _token,
-            amountLD
-        );
+        emit sgReceived(_chainId, _srcAddress, _token, amountLD);
     }
-
 }
