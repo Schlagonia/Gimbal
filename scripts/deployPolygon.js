@@ -21,7 +21,7 @@ async function main() {
   console.log("Balance of this wallet is: ", newBalance.toString())
 
   console.log("Deployer address: ", wallet.address)
-  const Vault = await ethers.getContractFactory("GimbalVault");
+  const Vault = await ethers.getContractFactory("SavorVault");
   const vault = await Vault.connect(wallet).deploy(
     '0xc2132d05d31c914a87c6611c10748aeb04b58e8f',  //Underlying USDC 0x817436a076060D158204d955E5403b6Ed0A5fac0
     wallet.address,                                //Keeper,

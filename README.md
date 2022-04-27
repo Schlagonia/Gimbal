@@ -1,8 +1,8 @@
-# Gimbal(Savor) Cross Chain Yield Aggregator
+# Savor Cross Chain Yield Aggregator
 
-This repo includes the contracts for the Gimbal Cross chain yield aggregaor being submitted for the Chainklink spring 22 hackathon.
+This repo includes the contracts for the Savor Cross chain yield aggregaor being submitted for the Chainklink spring 22 hackathon.
 
-Gimbal strives to be the first cross chain yield aggregator. With one deposit on any of the supported chain users are automatically earning the highest yields available across all supported chains.
+Savor strives to be the first cross chain yield aggregator. With one deposit on any of the supported chain users are automatically earning the highest yields available across all supported chains.
 
 ## Setup
 
@@ -16,7 +16,7 @@ To Setup:
 
 ## Architecture
 
-The master vault (GimbalVault.sol) uses the ERC4626 token standard and is an adaptation of the Rari Capital vaults that can be found here. https://github.com/Rari-Capital/vaults.
+The master vault (SavorVault.sol) uses the ERC4626 token standard and is an adaptation of the Rari Capital vaults that can be found here. https://github.com/Rari-Capital/vaults.
 
 The Bridgerton.sol contract utilizies the Stargate router to send funds between multiple chains.
 

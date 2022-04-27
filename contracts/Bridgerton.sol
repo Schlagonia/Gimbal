@@ -4,9 +4,10 @@ pragma solidity >=0.8.0;
 import { SafeERC20, IERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import { IStargateRouter } from "./Interfaces/Stargate/IStargateRouter.sol";
-import {Auth} from "./Solmate/auth/Auth.sol";
+//import {Auth} from "./Solmate/auth/Auth.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract Bridgerton is Auth {
+contract Bridgerton is Ownable {
     using SafeERC20 for IERC20;
     using Address for address;
 
@@ -44,14 +45,14 @@ contract Bridgerton is Auth {
     /// @param _stargateRouter Address of the router
     constructor(
         address _stargateRouter
-    ) Auth(Auth(msg.sender).owner(), Auth(msg.sender).authority()) {
+    ) {
      
         stargateRouter = _stargateRouter;
     }
 
     /// @notice Changes the status of whether or not a vault can call the swap function. 
     /// @param _vault address of the Vault
-    function setVault(address _vault) external requiresAuth{
+    function setVault(address _vault) external onlyOwner{
         require(_vault != address(0));
         bool current = vaults[_vault];
         vaults[_vault] = !current;
@@ -60,20 +61,20 @@ contract Bridgerton is Auth {
     /// @notice Used to add a new asset or change a current one
     /// @param _address Address of a supported token for this chain
     /// @param _pid Associated stargate PID for the token
-    function addAsset(address _address, uint256 _pid) external requiresAuth {
+    function addAsset(address _address, uint256 _pid) external onlyOwner {
         pids[_address] = _pid;
     }
 
     /// @notice Updates the stargate Router used for cross chain swaps
     /// @param _router The new Stargate Router Address
-    function _changeStargateRouter(address _router) external requiresAuth  {
+    function _changeStargateRouter(address _router) external onlyOwner  {
         require(_router != address(0), 'Must be valid address');
         stargateRouter = _router;
     }
 
     /// @notice Updates the allowed slippage for cross chain swaps
     /// @param _slippage The new slippage param
-    function _setSlippageProtectionOut(uint256 _slippage) external requiresAuth {
+    function _setSlippageProtectionOut(uint256 _slippage) external onlyOwner {
         require(_slippage < 10000, "Slippage to High");
         slippageProtectionOut = _slippage;
     }
@@ -199,8 +200,8 @@ contract Bridgerton is Auth {
     
     /// @notice Sweep function in case any tokens get stuck in the contract
     /// @param _asset Address of the token to sweep
-    function sweep(address _asset) external requiresAuth {
-        IERC20(_asset).safeTransfer(owner, IERC20(_asset).balanceOf(address(this)));
+    function sweep(address _asset) external onlyOwner {
+        IERC20(_asset).safeTransfer(msg.sender, IERC20(_asset).balanceOf(address(this)));
     }
     
     /// @dev Required for the Vault to receive unwrapped ETH.

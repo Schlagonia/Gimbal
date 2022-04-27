@@ -9,7 +9,7 @@ require('dotenv').config()
 async function main() {
 
   const signer = await impersonateAddress(process.env.PRIVATE_KEY);
-  const Vault = await ethers.getContractFactory("GimbalVault");
+  const Vault = await ethers.getContractFactory("SavorVault");
 
 
 

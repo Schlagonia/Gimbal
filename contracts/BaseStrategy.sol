@@ -11,7 +11,7 @@ import { Strategy } from './Interfaces/IStrategy.sol';
 interface StrategyAPI is Strategy {}
 
 /**
- * @title Gimbal Base Strategy
+ * @title Savor Base Strategy
  * @author Schlagonia adapted from Yearn.Finance BaseStrategy.sol
  * @notice
  *  BaseStrategy implements all of the required functionality to interoperate

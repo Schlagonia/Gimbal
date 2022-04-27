@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.0;
 
-import {Auth} from "./Solmate/auth/Auth.sol";
+//import {Auth} from "./Solmate/auth/Auth.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
 import {ERC4626} from "./Solmate/tokens/ERC4626.sol";
 
 import {SafeCastLib} from "./Solmate/utils/SafeCastLib.sol";
@@ -14,7 +16,7 @@ import {ERC20} from "./Solmate/tokens/ERC20.sol";
 import {Strategy} from "./Interfaces/IStrategy.sol";
 import {IBridgerton} from "./Interfaces/IBridgerton.sol";
 
-contract GimbalVault is ERC4626, Auth {
+contract SavorVault is ERC4626, Ownable {
     using SafeCastLib for uint256;
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
@@ -54,7 +56,6 @@ contract GimbalVault is ERC4626, Auth {
             // ex: svDAI
             string(abi.encodePacked("sv", _UNDERLYING.symbol()))
         )
-        Auth(Auth(msg.sender).owner(), Auth(msg.sender).authority())
     {
         UNDERLYING = _UNDERLYING;
 
@@ -83,7 +84,7 @@ contract GimbalVault is ERC4626, Auth {
 
     /// @notice Sets a new fee percentage.
     /// @param newFeePercent The new fee percentage.
-    function setFeePercent(uint256 newFeePercent) external requiresAuth {
+    function setFeePercent(uint256 newFeePercent) external onlyOwner {
         // A fee percentage over 100% doesn't make sense.
         require(newFeePercent <= 1e18, "FEE_TOO_HIGH");
 
@@ -137,9 +138,9 @@ contract GimbalVault is ERC4626, Auth {
     address public keeper;
 
     /// @notice To be called on contracts where a keeper is allowed
-    /// @dev Keeps requiresAuth to be for onlyOwner Calls.
+    /// @dev Keeps onlyOwner to be for onlyOwner Calls.
     modifier onlyKeeper() {
-        require(msg.sender == owner || msg.sender == keeper, "UNAUTHORIZED");
+        require(msg.sender == owner() || msg.sender == keeper, "UNAUTHORIZED");
         _;
     }
 
@@ -158,7 +159,7 @@ contract GimbalVault is ERC4626, Auth {
     /// @notice Sets a new harvest window.
     /// @param newHarvestWindow The new harvest window.
     /// @dev The Vault's harvestDelay must already be set before calling.
-    function setHarvestWindow(uint128 newHarvestWindow) external requiresAuth {
+    function setHarvestWindow(uint128 newHarvestWindow) external onlyOwner {
         // A harvest window longer than the harvest delay doesn't make sense.
         require(newHarvestWindow <= harvestDelay, "WINDOW_TOO_LONG");
 
@@ -173,7 +174,7 @@ contract GimbalVault is ERC4626, Auth {
     /// @dev If the current harvest delay is 0, meaning it has not
     /// been set before, it will be updated immediately, otherwise
     /// it will be scheduled to take effect after the next harvest.
-    function setHarvestDelay(uint64 newHarvestDelay) external requiresAuth {
+    function setHarvestDelay(uint64 newHarvestDelay) external onlyOwner {
         // A harvest delay of 0 makes harvests vulnerable to sandwich attacks.
         require(newHarvestDelay != 0, "DELAY_CANNOT_BE_ZERO");
 
@@ -214,7 +215,7 @@ contract GimbalVault is ERC4626, Auth {
     /// @param newTargetFloatPercent The new target float percentage.
     function setTargetFloatPercent(uint256 newTargetFloatPercent)
         external
-        requiresAuth
+        onlyOwner
     {
         // A target float percentage over 100% doesn't make sense.
         require(newTargetFloatPercent <= 1e18, "TARGET_TOO_HIGH");
@@ -296,6 +297,10 @@ contract GimbalVault is ERC4626, Auth {
         address _token,
         uint256 amountLD
     );
+
+    function setBridgerton(address _bridgerton) external onlyOwner{
+        Bridgerton = IBridgerton(_bridgerton);
+    }
 
     /// @notice Function to be called by keeper to initiate a cross chain swap
     /// @dev The function will transfer funds from the vault to Bridgerton to minimize gas usage for Bridgerton
@@ -443,7 +448,7 @@ contract GimbalVault is ERC4626, Auth {
     /// @param strategies The trusted strategies to harvest.
     /// @dev Will always revert if called outside of an active
     /// harvest window or before the harvest delay has passed.
-    function harvest(Strategy[] calldata strategies) external requiresAuth {
+    function harvest(Strategy[] calldata strategies) external onlyOwner {
         // If this is the first harvest after the last window:
         if (block.timestamp >= lastHarvest + harvestDelay) {
             // Set the harvest window's start timestamp.
@@ -566,7 +571,7 @@ contract GimbalVault is ERC4626, Auth {
     /// @param underlyingAmount The amount of underlying tokens in float to deposit.
     function depositIntoStrategy(Strategy strategy, uint256 underlyingAmount)
         external
-        requiresAuth
+        onlyOwner
     {
         // A strategy must be trusted before it can be deposited into.
         require(getStrategyData[strategy].trusted, "UNTRUSTED_STRATEGY");
@@ -596,7 +601,7 @@ contract GimbalVault is ERC4626, Auth {
     /// @dev Withdrawing from a strategy will not remove it from the withdrawal stack.
     function withdrawFromStrategy(Strategy strategy, uint256 underlyingAmount)
         external
-        requiresAuth
+        onlyOwner
     {
         // A strategy must be trusted before it can be withdrawn from.
         require(getStrategyData[strategy].trusted, "UNTRUSTED_STRATEGY");
@@ -632,7 +637,7 @@ contract GimbalVault is ERC4626, Auth {
 
     /// @notice Stores a strategy as trusted, enabling it to be harvested.
     /// @param strategy The strategy to make trusted.
-    function trustStrategy(Strategy strategy) external requiresAuth {
+    function trustStrategy(Strategy strategy) external onlyOwner {
         // Ensure the strategy accepts the correct underlying token.
         // If the strategy accepts ETH the Vault should accept WETH, it'll handle wrapping when necessary.
         require(
@@ -648,7 +653,7 @@ contract GimbalVault is ERC4626, Auth {
 
     /// @notice Stores a strategy as untrusted, disabling it from being harvested.
     /// @param strategy The strategy to make untrusted.
-    function distrustStrategy(Strategy strategy) external requiresAuth {
+    function distrustStrategy(Strategy strategy) external onlyOwner {
         // Store the strategy as untrusted.
         getStrategyData[strategy].trusted = false;
 
@@ -799,7 +804,7 @@ contract GimbalVault is ERC4626, Auth {
     /// @param strategy The strategy to be inserted at the front of the withdrawal stack.
     /// @dev Strategies that are untrusted, duplicated, or have no balance are
     /// filtered out when encountered at withdrawal time, not validated upfront.
-    function pushToWithdrawalStack(Strategy strategy) external requiresAuth {
+    function pushToWithdrawalStack(Strategy strategy) external onlyOwner {
         // Ensure pushing the strategy will not cause the stack exceed its limit.
         require(
             withdrawalStack.length < MAX_WITHDRAWAL_STACK_SIZE,
@@ -815,7 +820,7 @@ contract GimbalVault is ERC4626, Auth {
     /// @notice Removes the strategy at the tip of the withdrawal stack.
     /// @dev Be careful, another authorized user could push a different strategy
     /// than expected to the stack while a popFromWithdrawalStack transaction is pending.
-    function popFromWithdrawalStack() external requiresAuth {
+    function popFromWithdrawalStack() external onlyOwner {
         // Get the (soon to be) popped strategy.
         Strategy poppedStrategy = withdrawalStack[withdrawalStack.length - 1];
 
@@ -831,7 +836,7 @@ contract GimbalVault is ERC4626, Auth {
     /// filtered out when encountered at withdrawal time, not validated upfront.
     function setWithdrawalStack(Strategy[] calldata newStack)
         external
-        requiresAuth
+        onlyOwner
     {
         // Ensure the new stack is not larger than the maximum stack size.
         require(newStack.length <= MAX_WITHDRAWAL_STACK_SIZE, "STACK_TOO_BIG");
@@ -850,7 +855,7 @@ contract GimbalVault is ERC4626, Auth {
     function replaceWithdrawalStackIndex(
         uint256 index,
         Strategy replacementStrategy
-    ) external requiresAuth {
+    ) external onlyOwner {
         // Get the (soon to be) replaced strategy.
         Strategy replacedStrategy = withdrawalStack[index];
 
@@ -869,7 +874,7 @@ contract GimbalVault is ERC4626, Auth {
     /// @param index The index of the strategy in the withdrawal stack to replace with the tip.
     function replaceWithdrawalStackIndexWithTip(uint256 index)
         external
-        requiresAuth
+        onlyOwner
     {
         // Get the (soon to be) previous tip and strategy we will replace at the index.
         Strategy previousTipStrategy = withdrawalStack[
@@ -896,7 +901,7 @@ contract GimbalVault is ERC4626, Auth {
     /// @param index2 The other index involved in the swap.
     function swapWithdrawalStackIndexes(uint256 index1, uint256 index2)
         external
-        requiresAuth
+        onlyOwner
     {
         // Get the (soon to be) new strategies at each index.
         Strategy newStrategy2 = withdrawalStack[index1];
@@ -927,7 +932,7 @@ contract GimbalVault is ERC4626, Auth {
     /// @notice Claims fees accrued from harvests.
     /// @param rvTokenAmount The amount of rvTokens to claim.
     /// @dev Accrued fees are measured as rvTokens held by the Vault.
-    function claimFees(uint256 rvTokenAmount) external requiresAuth {
+    function claimFees(uint256 rvTokenAmount) external onlyOwner {
         emit FeesClaimed(msg.sender, rvTokenAmount);
 
         // Transfer the provided amount of rvTokens to the caller.
@@ -948,7 +953,7 @@ contract GimbalVault is ERC4626, Auth {
 
     /// @notice Initializes the Vault, enabling it to receive deposits.
     /// @dev All critical parameters must already be set before calling.
-    function initialize() external requiresAuth {
+    function initialize() external onlyOwner {
         // Ensure the Vault has not already been initialized.
         require(!isInitialized, "ALREADY_INITIALIZED");
 
@@ -963,7 +968,7 @@ contract GimbalVault is ERC4626, Auth {
 
     /// @notice Self destructs a Vault, enabling it to be redeployed.
     /// @dev Caller will receive any ETH held as float in the Vault.
-    function destroy() external requiresAuth {
+    function destroy() external onlyOwner {
         selfdestruct(payable(msg.sender));
     }
 
