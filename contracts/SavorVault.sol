@@ -4,7 +4,7 @@ pragma solidity >=0.8.0;
 //import {Auth} from "./Solmate/auth/Auth.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-import {ERC4626} from "./Solmate/tokens/ERC4626.sol";
+import {Savor4626} from "./Savor4626.sol";
 
 import {SafeCastLib} from "./Solmate/utils/SafeCastLib.sol";
 import {SafeTransferLib} from "./Solmate/utils/SafeTransferLib.sol";
@@ -16,7 +16,7 @@ import {ERC20} from "./Solmate/tokens/ERC20.sol";
 import {Strategy} from "./Interfaces/IStrategy.sol";
 import {IBridgerton} from "./Interfaces/IBridgerton.sol";
 
-contract SavorVault is ERC4626, Ownable {
+contract SavorVault is Savor4626, Ownable {
     using SafeCastLib for uint256;
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
@@ -48,7 +48,7 @@ contract SavorVault is ERC4626, Ownable {
         address _bridgerton,
         address _keeper
         )
-        ERC4626(
+        Savor4626(
             // Underlying token
             _UNDERLYING,
             // ex: Savor Dai Stablecoin Vault
@@ -356,9 +356,42 @@ contract SavorVault is ERC4626, Ownable {
 
     function afterDeposit(uint256, uint256) internal override {}
 
-    function beforeWithdraw(uint256 assets, uint256) internal override {
-        // Retrieve underlying tokens from strategies/float.
-        retrieveUnderlying(assets);
+    /// @notice Called after the withdraw/redeem functions are called
+    /// @dev Checks if we hae enouogh funds on this chain for withdraw. If not updates the pending withdraws that will be payed out on next harvest
+    /// @param assets The amount in Underlying trying to be withdrawn
+    /// @param receiver Address of the user trying to withdrawl
+    /// @return isAllAvailable Returns true if enough funds false if not
+    /// @return amountAvailable The amount available to be withdrawn. Only used if isAllAvailable is false
+    function beforeWithdraw(uint256 assets, address receiver) internal override returns (bool isAllAvailable, uint256 amountAvailable) {
+        //check available funds on this chain
+        amountAvailable = thisVaultsHoldings();
+
+        //if not enough remove what we can
+        if(assets > amountAvailable){
+            isAllAvailable = false;
+            //We can have the same owner multiple times in the array because all mapped values will be reduced after payout
+            waitingOnWithdrawals.push(receiver);
+
+            if(amountAvailable > 0) {
+                retrieveUnderlying(amountAvailable);
+            }
+
+            //How much in shares that we will need to send on Harvest
+            //Using shares so that the user will continue to make interest
+            uint256 sharesNeeded = convertToShares(assets - amountAvailable);
+
+            // Update the shares pending for the user to be sent on Harvest()
+            sharesPending[receiver] += sharesNeeded;
+            
+            //Update the total pending withdrawals for Keeper
+            pendingWithdrawals += sharesNeeded; 
+        }
+
+        else {
+            // Retrieve underlying tokens from strategies/float.
+            isAllAvailable = true;
+            retrieveUnderlying(assets);
+        }
     }
 
     /// @dev Retrieves a specific amount of underlying tokens held in strategies and/or float.
@@ -388,21 +421,58 @@ contract SavorVault is ERC4626, Ownable {
                         VAULT ACCOUNTING LOGIC
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Calculates the total amount of underlying tokens the Vault holds.
-    /// @return totalUnderlyingHeld The total amount of underlying tokens the Vault holds.
+    /// @notice Returns the total Supply of tokens on this chain
+    /// @return total outstanding supply plus the already burned shares that have yet to be payed out
+    function thisVaultsSupply() public view returns(uint256) {
+        return totalSupply + pendingWithdrawals;
+    }
+
+    /// @notice Returns the total supply from the vaults on other chains
+    function otherVaultsSupply() public view returns(uint256) {
+
+    }
+
+    /// @notice Returns the total supply of all the chains in order to properly calculate PPS
+    /// @return Total shares from each vault on each chain
+    function _totalSupply() public view override returns(uint256) {
+        uint256 _thisVaultsSupply = thisVaultsSupply();
+
+        uint256 _otherVaultsSupply = otherVaultsSupply();
+
+        return _thisVaultsSupply + _otherVaultsSupply;
+    }
+
+    /// @notice Returns the total amount of Underlying held by the Vault on this chain
+    /// @return underlyingHeld The amount this vault has access to
+    function thisVaultsHoldings() public view returns(uint256 underlyingHeld) {
+        unchecked {
+            // Cannot underflow as locked profit can't exceed total strategy holdings.
+            underlyingHeld = totalStrategyHoldings - lockedProfit();
+        }
+
+        // Include our floating balance in the total.
+        underlyingHeld += totalFloat();
+    }
+
+
+    /// @notice Returns the total amount of underlying the vaults on other chains hold
+    function otherVaultsHoldings() public view returns(uint256) {
+
+    }
+
+    /// @notice Calculates the total amount of underlying tokens the Vault holds accross chains.
+    /// @return The total amount of underlying tokens the Vault holds accross chains.
     function totalAssets()
         public
         view
         override
-        returns (uint256 totalUnderlyingHeld)
+        returns (uint256)
     {
-        unchecked {
-            // Cannot underflow as locked profit can't exceed total strategy holdings.
-            totalUnderlyingHeld = totalStrategyHoldings - lockedProfit();
-        }
+        uint256 _thisVaultsHoldings = thisVaultsHoldings();
+        
+        uint256 _otherVaultsHoldings = otherVaultsHoldings();
 
-        // Include our floating balance in the total.
-        totalUnderlyingHeld += totalFloat();
+        return _thisVaultsHoldings + _otherVaultsHoldings;
     }
 
     /// @notice Calculates the current amount of locked profit.
@@ -444,6 +514,32 @@ contract SavorVault is ERC4626, Ownable {
     /// @param strategies The trusted strategies that were harvested.
     event Harvest(address indexed user, Strategy[] strategies);
 
+    /// @notice Called during the harvesting proccess once funds are received from another chain
+    /// Pays out all pending withdrawals since last harvest
+    function payPendingWithdraws() internal {
+        if(pendingWithdrawals == 0) {
+            return;
+        }
+
+        require(UNDERLYING.balanceOf(address(this)) >= convertToAssets(pendingWithdrawals));
+
+        address _currentAddress;
+        uint256 _amount;
+        for(uint256 i = 0; i < waitingOnWithdrawals.length; i ++) {
+            _currentAddress = waitingOnWithdrawals[i];
+            _amount = sharesPending[_currentAddress];
+            if(_amount > 0) {
+                UNDERLYING.safeTransfer(_currentAddress, _amount);
+            }
+
+            sharesPending[_currentAddress] = 0;
+        }
+
+        //Reset the queue
+        pendingWithdrawals = 0;
+        delete waitingOnWithdrawals;
+    }
+
     /// @notice Harvest a set of trusted strategies.
     /// @param strategies The trusted strategies to harvest.
     /// @dev Will always revert if called outside of an active
@@ -482,6 +578,7 @@ contract SavorVault is ERC4626, Ownable {
 
             // Get the strategy's previous and current balance.
             uint256 balanceLastHarvest = getStrategyData[strategy].balance;
+            //This neeeds to be adjusted to avoid manipulation
             uint256 balanceThisHarvest = strategy.estimatedTotalAssets();
 
             // Update the strategy's stored balance. Cast overflow is unrealistic.
