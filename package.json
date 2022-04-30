@@ -5,9 +5,9 @@
     "hardhat": "hardhat",
     "compile": "hardhat compile",
     "hardhat:rinkeby": "hardhat --network rinkeby",
-    "hardhat:mumbai" : "npx hardhat --network mumbai",
+    "hardhat:mumbai" : "hardhat --network mumbai",
     "bridgerton:rinkeby:deploy": "npm run compile && npm run hardhat:rinkeby -- deploy-bridgerton --verify",
-    "bridgerton:mumbai:deploy": "npm run compile && npm run hardhat:mumbai deploy-bridgerton --verify"
+    "bridgerton:mumbai:deploy": "npm run compile && npm run hardhat:mumbai -- deploy-bridgerton --verify"
   },
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.5",
