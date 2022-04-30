@@ -1,5 +1,6 @@
 const { ethers } = require("hardhat");
 const hre = require("hardhat");
+const { networks } = require('../hardhat.config')
 const { BigNumber } = require("ethers");
 import { Wallet, ContractTransaction, Signer } from 'ethers';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
@@ -7,6 +8,10 @@ import { isAddress } from 'ethers/lib/utils';
 import { isZeroAddress } from 'ethereumjs-util';
 
 //export const stringToBigNumber = (amount: string): BigNumber => new BigNumber(amount);
+export const getWallet = (network: string) => {
+  const provider = new ethers.providers.JsonRpcProvider(networks.network.url)
+  return new ethers.Wallet(process.env.PRIV_KEY, provider)
+}
 
 export const sleep = (milliseconds: number) => {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));

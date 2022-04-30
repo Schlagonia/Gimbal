@@ -1,6 +1,7 @@
 require("@nomiclabs/hardhat-waffle");
 require('dotenv').config();
 require("@nomiclabs/hardhat-etherscan");
+require('./tasks/deployments/deploy-bridgerton')
 /*
 To run a script on a fork open a terminal within this repo and run "npx hardhat node --fork YOUR_FULL_MORALIS_URL"
 Then open a new terminal in this repo and run "npx hardhat run SCRIPT_TO_RUN --network localhost"

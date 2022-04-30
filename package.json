@@ -1,5 +1,14 @@
 {
-  "name": "hardhat-project",
+  "name": "Savor-Finance",
+  "version": "1.0",
+  "scripts": {
+    "hardhat": "hardhat",
+    "compile": "hardhat compile",
+    "hardhat:rinkeby": "hardhat --network rinkeby",
+    "hardhat:mumbai" : "npx hardhat --network mumbai",
+    "bridgerton:rinkeby:deploy": "npm run compile && npm run hardhat:rinkeby -- deploy-bridgerton --verify",
+    "bridgerton:mumbai:deploy": "npm run compile && npm run hardhat:mumbai deploy-bridgerton --verify"
+  },
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.5",
     "@nomiclabs/hardhat-waffle": "^2.0.3",
@@ -9,7 +18,7 @@
     "hardhat": "^2.9.3",
     "hardhat-deploy": "^0.11.4",
     "ts-node": "^10.7.0",
-    "typescript": "^4.6.3"
+    "typescript": "^4.6.4"
   },
   "dependencies": {
     "@nomiclabs/hardhat-etherscan": "^3.0.3",

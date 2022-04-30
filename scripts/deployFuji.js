@@ -9,8 +9,8 @@ require('dotenv').config()
 
 async function main() {
 
-  const stargateRouter = '0x82A0F5F531F9ce0df1DF5619f74a0d3fA31FF561'
-  const usdc = '0x1717A0D5C8705EE89A8aD6E808268D6A826C97A4'
+  const stargateRouter = '0x13093E05Eb890dfA6DacecBdE51d24DabAb2Faa1'
+  const usdc = '0x4A0D1092E9df255cf95D72834Ea9255132782318'
   const tenth = '100000000000000000'
 
   const currentNetwork = networks.fuji.url

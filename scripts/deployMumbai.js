@@ -9,19 +9,19 @@ require('dotenv').config()
 
 async function main() {
 
-  const currentNetwork = networks.polygon.url
+  const currentNetwork = networks.mumbai.url
   console.log("Deploying to current network: ", currentNetwork)
 
   const provider = await new ethers.providers.JsonRpcProvider(currentNetwork)
-
-  var wallet = await new ethers.Wallet.fromMnemonic(process.env.MNEMONIC, `m/44'/60'/0'/0/2`)
-  wallet = wallet.connect(provider)
+  let wallet = new ethers.Wallet(process.env.PRIV_KEY, provider);
+  //var wallet = await new ethers.Wallet.fromMnemonic(process.env.MNEMONIC, `m/44'/60'/0'/0/2`)
+ 0// wallet = wallet.connect(provider)
   const newBalance = await wallet.getBalance()
 
   console.log("Balance of this wallet is: ", newBalance.toString())
   console.log("Deployer address: ", wallet.address)
 
-  const usdc = '0xc2132d05d31c914a87c6611c10748aeb04b58e8f'              //Underlying USDC 0x817436a076060D158204d955E5403b6Ed0A5fac0
+  const usdc = '0x742DfA5Aa70a8212857966D491D67B09Ce7D6ec7'              //Underlying USDC 0x817436a076060D158204d955E5403b6Ed0A5fac0
   const stargate = '0x817436a076060D158204d955E5403b6Ed0A5fac0'          // Stargate Testnet Router https://mumbai.polygonscan.com/address/0x817436a076060D158204d955E5403b6Ed0A5fac0
   const tenth = '100000000000000000'
 
@@ -36,14 +36,15 @@ async function main() {
   )
   await bridgerton.deployed()
 
+  console.log("Bridgerton Deployed to: ", bridgerton.address)
 
   //Then Deploy Vault
   const Vault = await ethers.getContractFactory("SavorVault");
+
   const vault = await Vault.connect(wallet).deploy(
     usdc,  //Underlying USDC 
     bridgerton.address,   // Brigerton
-    wallet.address,   //Keeper,
-    { params }
+    wallet.address   //Keeper,
   )
 
   await vault.deployed()
@@ -52,11 +53,18 @@ async function main() {
   // //set the fee percent
   // Sets performance fee to 10%
 
-  await vault.connect(wallet).setFeePercent(tenth)
-  console.log("Target fee Percent set")
+  //await vault.connect(wallet).setFeePercent(tenth)
+  //console.log("Target fee Percent set")
   // //Set Target Float
   await vault.connect(wallet).setTargetFloatPercent(tenth)
   console.log("Targe Float Set")
+
+  
+  // //Initialize the Vault
+  await vault.connect(wallet).initialize()
+  console.log("Vault initiliazed")
+
+  console.log("Vault Ready to Go")
 }
 
 main()
