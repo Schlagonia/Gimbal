@@ -9,11 +9,11 @@ require('dotenv').config()
 
 async function main() {
 
-  const stargateRouter = '0xa73b0a56B29aD790595763e71505FCa2c1abb77f'
-  const usdc = '0x076488D244A73DA4Fa843f5A8Cd91F655CA81a1e'
+  const stargateRouter = '0x82A0F5F531F9ce0df1DF5619f74a0d3fA31FF561'
+  const usdc = '0x1717A0D5C8705EE89A8aD6E808268D6A826C97A4'
   const tenth = '100000000000000000'
 
-  const currentNetwork = networks.operaTestnet.url
+  const currentNetwork = networks.fuji.url
   console.log("Deploying to current network: ", currentNetwork)
 
   const provider = new ethers.providers.JsonRpcProvider(currentNetwork)
@@ -21,9 +21,8 @@ async function main() {
   let wallet = new ethers.Wallet(process.env.PRIV_KEY, provider);
 
   let gasPrice = await provider.getGasPrice()
-  console.log("Gas Price: ", gasPrice)
 
-  const params = { gasLimit: String("200028000000"), gasPrice: String("200028000000") }
+  const params = { gasLimit: String(gasPrice.toString()), gasPrice: String(gasPrice.toString()) }
 
   const newBalance = await wallet.getBalance()
 
@@ -35,8 +34,8 @@ async function main() {
 
   const Bridgerton = await ethers.getContractFactory('Bridgerton')
   const bridgerton = await Bridgerton.connect(wallet).deploy(
-    stargateRouter,
-    { params }
+    stargateRouter
+    //{ params }
   )
   await bridgerton.deployed()
 
@@ -48,7 +47,6 @@ async function main() {
     usdc,  //Underlying USDC 
     bridgerton.address,   // Brigerton
     wallet.address   //Keeper,
-
   )
 
   await vault.deployed()
