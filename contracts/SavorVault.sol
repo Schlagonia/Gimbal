@@ -435,11 +435,14 @@ contract SavorVault is Savor4626, Ownable {
     /// @notice Returns the total supply of all the chains in order to properly calculate PPS
     /// @return Total shares from each vault on each chain
     function _totalSupply() public view override returns(uint256) {
+        /*
         uint256 _thisVaultsSupply = thisVaultsSupply();
 
         uint256 _otherVaultsSupply = otherVaultsSupply();
 
         return _thisVaultsSupply + _otherVaultsSupply;
+        */
+        return thisVaultsSupply();
     }
 
     /// @notice Returns the total amount of Underlying held by the Vault on this chain
@@ -468,11 +471,14 @@ contract SavorVault is Savor4626, Ownable {
         override
         returns (uint256)
     {
+        /*
         uint256 _thisVaultsHoldings = thisVaultsHoldings();
         
         uint256 _otherVaultsHoldings = otherVaultsHoldings();
 
         return _thisVaultsHoldings + _otherVaultsHoldings;
+        */
+        return thisVaultsHoldings();
     }
 
     /// @notice Calculates the current amount of locked profit.
@@ -513,6 +519,12 @@ contract SavorVault is Savor4626, Ownable {
     /// @param user The authorized user who triggered the harvest.
     /// @param strategies The trusted strategies that were harvested.
     event Harvest(address indexed user, Strategy[] strategies);
+
+    /// @notice To be called by keeper based on total supply / total assets for vaults on all chain
+    /// @param _virtualPrice the new virtual price in 1e18
+    function updateVirtualPrice(uint256 _virtualPrice) external onlyKeeper{
+        virtualPrice = _virtualPrice;
+    }
 
     /// @notice Called during the harvesting proccess once funds are received from another chain
     /// Pays out all pending withdrawals since last harvest

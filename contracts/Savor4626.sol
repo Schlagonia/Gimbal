@@ -157,15 +157,11 @@ abstract contract Savor4626 is ERC20 {
     function _totalSupply() public view virtual returns(uint256);
 
     function convertToShares(uint256 assets) public view virtual returns (uint256) {
-        uint256 supply = _totalSupply(); // Saves an extra SLOAD if totalSupply is non-zero.
-
-        return supply == 0 ? assets : assets.mulDivDown(supply, totalAssets());
+        return assets.divWadDown(virtualPrice);
     }
 
     function convertToAssets(uint256 shares) public view virtual returns (uint256) {
-        uint256 supply = _totalSupply(); // Saves an extra SLOAD if totalSupply is non-zero.
-
-        return supply == 0 ? shares : shares.mulDivDown(totalAssets(), supply);
+        return shares.mulWadDown(virtualPrice);
     }
 
     function previewDeposit(uint256 assets) public view virtual returns (uint256) {
@@ -173,15 +169,11 @@ abstract contract Savor4626 is ERC20 {
     }
 
     function previewMint(uint256 shares) public view virtual returns (uint256) {
-        uint256 supply = _totalSupply(); // Saves an extra SLOAD if totalSupply is non-zero.
-
-        return supply == 0 ? shares : shares.mulDivUp(totalAssets(), supply);
+        return shares.mulWadUp(virtualPrice);
     }
 
     function previewWithdraw(uint256 assets) public view virtual returns (uint256) {
-        uint256 supply = _totalSupply(); // Saves an extra SLOAD if totalSupply is non-zero.
-
-        return supply == 0 ? assets : assets.mulDivUp(supply, totalAssets());
+        return assets.divWadUp(virtualPrice);
     }
 
     function previewRedeem(uint256 shares) public view virtual returns (uint256) {
