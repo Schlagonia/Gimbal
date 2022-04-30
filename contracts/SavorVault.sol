@@ -47,7 +47,7 @@ contract SavorVault is Savor4626, Ownable {
         ERC20 _UNDERLYING,
         address _bridgerton,
         address _keeper
-        )
+    )
         Savor4626(
             // Underlying token
             _UNDERLYING,
@@ -298,7 +298,7 @@ contract SavorVault is Savor4626, Ownable {
         uint256 amountLD
     );
 
-    function setBridgerton(address _bridgerton) external onlyOwner{
+    function setBridgerton(address _bridgerton) external onlyOwner {
         Bridgerton = IBridgerton(_bridgerton);
     }
 
@@ -313,15 +313,18 @@ contract SavorVault is Savor4626, Ownable {
         uint16 chainId,
         uint256 _amount,
         address _vaultTo
-    ) external payable onlyKeeper{
-        require(UNDERLYING.balanceOf(address(this)) >= _amount, "Not enough funds for that swap");
+    ) external payable onlyKeeper {
+        require(
+            UNDERLYING.balanceOf(address(this)) >= _amount,
+            "Not enough funds for that swap"
+        );
 
         UNDERLYING.safeTransfer(address(Bridgerton), _amount);
 
-        Bridgerton.swap{value:address(this).balance}(
-             chainId, 
-             address(UNDERLYING), 
-             _amount,
+        Bridgerton.swap{value: address(this).balance}(
+            chainId,
+            address(UNDERLYING),
+            _amount,
             _vaultTo
         );
     }
@@ -341,13 +344,7 @@ contract SavorVault is Savor4626, Ownable {
         uint256 amountLD,
         bytes memory payload
     ) external {
-        
-        emit sgReceived(
-            _chainId,
-            _srcAddress,
-            _token,
-            amountLD
-        );
+        emit sgReceived(_chainId, _srcAddress, _token, amountLD);
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -362,17 +359,21 @@ contract SavorVault is Savor4626, Ownable {
     /// @param receiver Address of the user trying to withdrawl
     /// @return isAllAvailable Returns true if enough funds false if not
     /// @return amountAvailable The amount available to be withdrawn. Only used if isAllAvailable is false
-    function beforeWithdraw(uint256 assets, address receiver) internal override returns (bool isAllAvailable, uint256 amountAvailable) {
+    function beforeWithdraw(uint256 assets, address receiver)
+        internal
+        override
+        returns (bool isAllAvailable, uint256 amountAvailable)
+    {
         //check available funds on this chain
         amountAvailable = thisVaultsHoldings();
 
         //if not enough remove what we can
-        if(assets > amountAvailable){
+        if (assets > amountAvailable) {
             isAllAvailable = false;
             //We can have the same owner multiple times in the array because all mapped values will be reduced after payout
             waitingOnWithdrawals.push(receiver);
 
-            if(amountAvailable > 0) {
+            if (amountAvailable > 0) {
                 retrieveUnderlying(amountAvailable);
             }
 
@@ -382,12 +383,10 @@ contract SavorVault is Savor4626, Ownable {
 
             // Update the shares pending for the user to be sent on Harvest()
             sharesPending[receiver] += sharesNeeded;
-            
-            //Update the total pending withdrawals for Keeper
-            pendingWithdrawals += sharesNeeded; 
-        }
 
-        else {
+            //Update the total pending withdrawals for Keeper
+            pendingWithdrawals += sharesNeeded;
+        } else {
             // Retrieve underlying tokens from strategies/float.
             isAllAvailable = true;
             retrieveUnderlying(assets);
@@ -423,18 +422,16 @@ contract SavorVault is Savor4626, Ownable {
 
     /// @notice Returns the total Supply of tokens on this chain
     /// @return total outstanding supply plus the already burned shares that have yet to be payed out
-    function thisVaultsSupply() public view returns(uint256) {
+    function thisVaultsSupply() public view returns (uint256) {
         return totalSupply + pendingWithdrawals;
     }
 
     /// @notice Returns the total supply from the vaults on other chains
-    function otherVaultsSupply() public view returns(uint256) {
-
-    }
+    function otherVaultsSupply() public view returns (uint256) {}
 
     /// @notice Returns the total supply of all the chains in order to properly calculate PPS
     /// @return Total shares from each vault on each chain
-    function _totalSupply() public view override returns(uint256) {
+    function _totalSupply() public view override returns (uint256) {
         uint256 _thisVaultsSupply = thisVaultsSupply();
 
         uint256 _otherVaultsSupply = otherVaultsSupply();
@@ -444,7 +441,7 @@ contract SavorVault is Savor4626, Ownable {
 
     /// @notice Returns the total amount of Underlying held by the Vault on this chain
     /// @return underlyingHeld The amount this vault has access to
-    function thisVaultsHoldings() public view returns(uint256 underlyingHeld) {
+    function thisVaultsHoldings() public view returns (uint256 underlyingHeld) {
         unchecked {
             // Cannot underflow as locked profit can't exceed total strategy holdings.
             underlyingHeld = totalStrategyHoldings - lockedProfit();
@@ -454,22 +451,14 @@ contract SavorVault is Savor4626, Ownable {
         underlyingHeld += totalFloat();
     }
 
-
     /// @notice Returns the total amount of underlying the vaults on other chains hold
-    function otherVaultsHoldings() public view returns(uint256) {
-
-    }
+    function otherVaultsHoldings() public view returns (uint256) {}
 
     /// @notice Calculates the total amount of underlying tokens the Vault holds accross chains.
     /// @return The total amount of underlying tokens the Vault holds accross chains.
-    function totalAssets()
-        public
-        view
-        override
-        returns (uint256)
-    {
+    function totalAssets() public view override returns (uint256) {
         uint256 _thisVaultsHoldings = thisVaultsHoldings();
-        
+
         uint256 _otherVaultsHoldings = otherVaultsHoldings();
 
         return _thisVaultsHoldings + _otherVaultsHoldings;
@@ -517,18 +506,21 @@ contract SavorVault is Savor4626, Ownable {
     /// @notice Called during the harvesting proccess once funds are received from another chain
     /// Pays out all pending withdrawals since last harvest
     function payPendingWithdraws() internal {
-        if(pendingWithdrawals == 0) {
+        if (pendingWithdrawals == 0) {
             return;
         }
 
-        require(UNDERLYING.balanceOf(address(this)) >= convertToAssets(pendingWithdrawals));
+        require(
+            UNDERLYING.balanceOf(address(this)) >=
+                convertToAssets(pendingWithdrawals)
+        );
 
         address _currentAddress;
         uint256 _amount;
-        for(uint256 i = 0; i < waitingOnWithdrawals.length; i ++) {
+        for (uint256 i = 0; i < waitingOnWithdrawals.length; i++) {
             _currentAddress = waitingOnWithdrawals[i];
             _amount = sharesPending[_currentAddress];
-            if(_amount > 0) {
+            if (_amount > 0) {
                 UNDERLYING.safeTransfer(_currentAddress, _amount);
             }
 

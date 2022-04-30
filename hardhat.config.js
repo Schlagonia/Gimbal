@@ -30,16 +30,16 @@ module.exports = {
   networks: {
     hardhat: {
       chainId: 137, // Specified in case we are not forking
-      forking:{
+      forking: {
         url: `https://speedy-nodes-nyc.moralis.io/${moralisKey}/polygon/mainnet`
       },
     },
-    rinkeby : {
-      url : `https://speedy-nodes-nyc.moralis.io/${moralisKey}/eth/rinkeby`,
+    rinkeby: {
+      url: `https://speedy-nodes-nyc.moralis.io/${moralisKey}/eth/rinkeby`,
       accounts: [account]
     },
-    localhost : {
-      url : 'http://127.0.0.1:8545/',
+    localhost: {
+      url: 'http://127.0.0.1:8545/',
       gasPrice: 225000000000,
       timeout: 200000,
     },
@@ -64,7 +64,7 @@ module.exports = {
     operaTestnet: {
       url: "https://rpc.testnet.fantom.network",
       chainId: 4002,
-      gasPrice: 2000000000,
+      //gasPrice: 2000000000,
       accounts: [account],
     },
     avalanche: {
