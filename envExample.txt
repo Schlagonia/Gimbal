@@ -1,8 +1,8 @@
 #Private Key for the Address to be used
-PRIV_KEY=
+PRIV_KEY= ""
 
 # Add moralis provider keys
-MORALIS_KEY=
+MORALIS_KEY=""
 
 # Optional Etherscan key, for automatize the verification of the contracts at Etherscan
 ETHERSCAN_KEY=
