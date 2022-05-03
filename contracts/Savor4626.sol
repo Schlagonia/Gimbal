@@ -197,7 +197,11 @@ abstract contract Savor4626 is ERC20 {
     }
 
     function maxRedeem(address owner) public view virtual returns (uint256) {
-        return balanceOf[owner] - sharesPending[owner];
+        return balanceOf[owner];
+    }
+
+    function totalUserBalance(address owner) public view returns (uint256) {
+        return balanceOf[owner] + sharesPending[owner];
     }
 
     /*//////////////////////////////////////////////////////////////

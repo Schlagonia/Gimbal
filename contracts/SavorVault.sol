@@ -509,19 +509,29 @@ contract SavorVault is Savor4626, Ownable {
                              HARVEST LOGIC
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice Emitted after the Virtual price is updated
+    /// @param newVirtualPrice The update virtual price.
+    event VirtualPriceUpdated(uint256 newVirtualPrice);
+
     /// @notice Emitted after a successful harvest.
     /// @param user The authorized user who triggered the harvest.
     /// @param strategies The trusted strategies that were harvested.
     event Harvest(address indexed user, Strategy[] strategies);
 
+    /// @notice Emitted after the pending withdraw queue is payed out
+    event PendingWithdrawsPayed();
+
     /// @notice To be called by keeper based on total supply / total assets for vaults on all chain
     /// @param _virtualPrice the new virtual price in 1e18
     function updateVirtualPrice(uint256 _virtualPrice) external onlyKeeper{
         virtualPrice = _virtualPrice;
+
+        emit VirtualPriceUpdated(virtualPrice);
     }
 
     /// @notice Called during the harvesting proccess once funds are received from another chain
     /// Pays out all pending withdrawals since last harvest
+    /// @dev Will only be called if funds were not originally deployed on this chain
     function payPendingWithdraws() internal {
         if (pendingWithdrawals == 0) {
             return;
@@ -547,13 +557,16 @@ contract SavorVault is Savor4626, Ownable {
         //Reset the queue
         pendingWithdrawals = 0;
         delete waitingOnWithdrawals;
+
+        emit PendingWithdrawsPayed();
     }
 
-    /// @notice Harvest a set of trusted strategies.
+    /// @notice Harvest a set of trusted strategies. And Withdraw any funds that will need to be swapped to other chain
     /// @param strategies The trusted strategies to harvest.
+    /// @param toWithdraw The amount if any that needs to be freed to be bridged to another chain
     /// @dev Will always revert if called outside of an active
     /// harvest window or before the harvest delay has passed.
-    function harvest(Strategy[] calldata strategies) external onlyOwner {
+    function harvest(Strategy[] calldata strategies, uint256 toWithdraw) external onlyOwner {
         // If this is the first harvest after the last window:
         if (block.timestamp >= lastHarvest + harvestDelay) {
             // Set the harvest window's start timestamp.
@@ -645,6 +658,10 @@ contract SavorVault is Savor4626, Ownable {
             nextHarvestDelay = 0;
 
             emit HarvestDelayUpdated(msg.sender, newHarvestDelay);
+        }
+
+        if(toWithdraw > 0) {
+            retrieveUnderlying(toWithdraw);
         }
     }
 
