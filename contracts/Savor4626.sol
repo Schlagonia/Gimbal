@@ -5,9 +5,11 @@ import {ERC20} from "./Solmate/tokens/ERC20.sol";
 import {SafeTransferLib} from "./Solmate/utils/SafeTransferLib.sol";
 import {FixedPointMathLib} from "./Solmate/utils/FixedPointMathLib.sol";
 
+import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+
 /// @notice Minimal ERC4626 tokenized Vault implementation.
 /// @author Solmate (https://github.com/Rari-Capital/solmate/blob/main/src/mixins/ERC4626.sol)
-abstract contract Savor4626 is ERC20 {
+abstract contract Savor4626 is ERC20, ReentrancyGuard {
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
 
@@ -45,7 +47,7 @@ abstract contract Savor4626 is ERC20 {
 
     /// @notice Mapping that tracks how many shares are pending withdraw for each address in waitingOnWithdrawls
     /// @dev To find the amount user can withdraw take balanceOf[owner] - sharesPending[owner]
-    ///         The value of all shares pending will be sent to the owner on the next harvest 
+    /// The value of all shares pending will be sent to the owner on the next harvest 
     mapping (address => uint256) public sharesPending;
 
     /// @notice The total amount of shares that needs to be pulled on the next harvest from another chain
@@ -85,7 +87,7 @@ abstract contract Savor4626 is ERC20 {
         uint256 assets,
         address receiver,
         address owner
-    ) public virtual returns (uint256 shares) {
+    ) public virtual nonReentrant() returns (uint256 shares) {
         shares = previewWithdraw(assets); // No need to check for rounding error, previewWithdraw rounds up.
 
         if (msg.sender != owner) {
@@ -116,7 +118,7 @@ abstract contract Savor4626 is ERC20 {
         uint256 shares,
         address receiver,
         address owner
-    ) public virtual returns (uint256 assets) {
+    ) public virtual nonReentrant() returns (uint256 assets) {
         if (msg.sender != owner) {
             uint256 allowed = allowance[owner][msg.sender]; // Saves gas for limited approvals.
 

@@ -8,7 +8,7 @@ const addresses = {
 
 task('deploy-bridgerton', 'Deploy Bridgerton Contract')
   .addFlag('verify', 'Verify Contracts on Etherscan')
-  .setAction( async ( { chain }) => {
+  .setAction( async () => {
     try{
     
       const currentNetwork = hre.network
