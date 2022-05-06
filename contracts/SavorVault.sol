@@ -42,6 +42,7 @@ contract SavorVault is Savor4626, Ownable {
 
     /// @notice Creates a new Vault that accepts a specific underlying token.
     /// @param _UNDERLYING The ERC20 compliant token the Vault should accept.
+    /// @param _bridgerton The address of the Bridgerton contract on this chain
     /// @param _keeper The address to set ass keeper
     constructor(
         ERC20 _UNDERLYING,
@@ -199,31 +200,28 @@ contract SavorVault is Savor4626, Ownable {
                        TARGET FLOAT CONFIGURATION
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice The desired percentage of the Vault's holdings to keep as float.
-    /// @dev A fixed point number where 1e18 represents 100% and 0 represents 0%.
-    uint256 public targetFloatPercent;
+    /// @notice The desired amount of the Vault's holdings to keep as float.
+    /// @dev An amount in Underlying that is updated on harvests.
+    uint256 public targetFloat;
 
-    /// @notice Emitted when the target float percentage is updated.
+    /// @notice Emitted when the target float is updated.
     /// @param user The authorized user who triggered the update.
-    /// @param newTargetFloatPercent The new target float percentage.
-    event TargetFloatPercentUpdated(
+    /// @param newTargetFloat The new target float.
+    event TargetFloatUpdated(
         address indexed user,
-        uint256 newTargetFloatPercent
+        uint256 newTargetFloat
     );
 
-    /// @notice Set a new target float percentage.
-    /// @param newTargetFloatPercent The new target float percentage.
-    function setTargetFloatPercent(uint256 newTargetFloatPercent)
-        external
-        onlyOwner
+    /// @notice Set a new target float.
+    /// @param newTargetFloat The new target float.
+    function setTargetFloat(uint256 newTargetFloat)
+        public
+        onlyKeeper
     {
-        // A target float percentage over 100% doesn't make sense.
-        require(newTargetFloatPercent <= 1e18, "TARGET_TOO_HIGH");
-
         // Update the target float percentage.
-        targetFloatPercent = newTargetFloatPercent;
+        targetFloat = newTargetFloat;
 
-        emit TargetFloatPercentUpdated(msg.sender, newTargetFloatPercent);
+        emit TargetFloatUpdated(msg.sender, newTargetFloat);
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -275,7 +273,7 @@ contract SavorVault is Savor4626, Ownable {
     /// @return An ordered array of strategies representing the withdrawal stack.
     /// @dev This is provided because Solidity converts public arrays into index getters,
     /// but we need a way to allow external contracts and users to access the whole array.
-    function getWithdrawalStack() external view returns (Strategy[] memory) {
+    function getWithdrawalStack() public view returns (Strategy[] memory) {
         return withdrawalStack;
     }
 
@@ -285,6 +283,14 @@ contract SavorVault is Savor4626, Ownable {
 
     /// @notice the instance of the current Bridgerton contract we will use
     IBridgerton Bridgerton;
+
+    /// @notice Emitted after a succesful cross chain swap is completed
+    /// @param chainId The strargate chain Id of the dest. chain.
+    /// @param amount The amount the was swapped
+    event FundsSwapped(
+        uint256 chainId,
+        uint256 amount
+    );
 
     /// @notice Emitted when the Funds are received by this contract from Stargate router.
     /// @param _chainId The chain from which the funds were sent.
@@ -298,14 +304,18 @@ contract SavorVault is Savor4626, Ownable {
         uint256 amountLD
     );
 
+    /// @notice Updates the instance of the Bridgerton Contract when needed
+    /// @param _bridgerton The address of the new contract
     function setBridgerton(address _bridgerton) external onlyOwner {
+        require(_bridgerton != address(0));
+
         Bridgerton = IBridgerton(_bridgerton);
     }
 
     /// @notice Function to be called by keeper to initiate a cross chain swap
     /// @dev The function will transfer funds from the vault to Bridgerton to minimize gas usage for Bridgerton
-    ///         so that the gas estimate check is accurate
-    ///       Sends the full gas value in this contract and any extra is refunded to the tx.origin.
+    /// so that the gas estimate check is accurate
+    /// Sends the full gas value in this contract and any extra is refunded to the tx.origin.
     /// @param chainId The id of chain we are swapping to
     /// @param _amount The amount of underlying to swap
     /// @param _vaultTo The strategy the receving vault should deposit in if applicable
@@ -321,12 +331,16 @@ contract SavorVault is Savor4626, Ownable {
 
         UNDERLYING.safeTransfer(address(Bridgerton), _amount);
 
-        Bridgerton.swap{value: address(this).balance}(
+        bool success = Bridgerton.swap{value: address(this).balance}(
             chainId,
             address(UNDERLYING),
             _amount,
             _vaultTo
         );
+
+        require(success, "Transaction did not go through");
+
+        emit FundsSwapped(chainId, _amount);
     }
 
     /// @notice function for the stargate router to call when funds are being received from another chain
@@ -367,10 +381,12 @@ contract SavorVault is Savor4626, Ownable {
         //check available funds on this chain
         amountAvailable = thisVaultsHoldings();
 
-        //if not enough remove what we can
+        //Check if we have enought to pay the withdraw now
         if (assets > amountAvailable) {
+            //If not let the withdraw function know we dont
             isAllAvailable = false;
-            //We can have the same owner multiple times in the array because all mapped values will be reduced after payout
+            //Add the receiver to the withdraw queue
+            //We can have the same receiver multiple times in the array because all mapped values will be reduced after payout
             waitingOnWithdrawals.push(receiver);
 
             if (amountAvailable > 0) {
@@ -387,6 +403,7 @@ contract SavorVault is Savor4626, Ownable {
             //Update the total pending withdrawals for Keeper
             pendingWithdrawals += sharesNeeded;
         } else {
+            //we have enough funds
             // Retrieve underlying tokens from strategies/float.
             isAllAvailable = true;
             retrieveUnderlying(assets);
@@ -402,17 +419,22 @@ contract SavorVault is Savor4626, Ownable {
 
         // If the amount is greater than the float, withdraw from strategies.
         if (underlyingAmount > float) {
-            // Compute the amount needed to reach our target float percentage.
-            uint256 floatMissingForTarget = (totalAssets() - underlyingAmount)
-                .mulWadDown(targetFloatPercent);
-
+            
             // Compute the bare minimum amount we need for this withdrawal.
             uint256 floatMissingForWithdrawal = underlyingAmount - float;
 
-            // Pull enough to cover the withdrawal and reach our target float percentage.
-            pullFromWithdrawalStack(
-                floatMissingForWithdrawal + floatMissingForTarget
-            );
+            //Compute the desired amount we would like to pull to keep float
+            uint256 desiredAmount = floatMissingForWithdrawal + targetFloat;
+
+            if(desiredAmount < totalStrategyHoldings) {
+                //If we have enought pull just whats needed
+                pullFromWithdrawalStack(desiredAmount);
+            } else {
+                //If we dont have enough pull everything
+                pullFromWithdrawalStack(totalStrategyHoldings);
+            }
+
+
         }
     }
 
@@ -509,20 +531,30 @@ contract SavorVault is Savor4626, Ownable {
                              HARVEST LOGIC
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice Emitted after the Virtual price is updated
+    /// @param newVirtualPrice The update virtual price.
+    event VirtualPriceUpdated(uint256 newVirtualPrice);
+
     /// @notice Emitted after a successful harvest.
     /// @param user The authorized user who triggered the harvest.
     /// @param strategies The trusted strategies that were harvested.
     event Harvest(address indexed user, Strategy[] strategies);
 
-    /// @notice To be called by keeper based on total supply / total assets for vaults on all chain
+    /// @notice Emitted after the pending withdraw queue is payed out
+    event PendingWithdrawalsPayed();
+
+    /// @notice To be called by keeper based on total assets / total supply for vaults on all chains
     /// @param _virtualPrice the new virtual price in 1e18
     function updateVirtualPrice(uint256 _virtualPrice) external onlyKeeper{
         virtualPrice = _virtualPrice;
+
+        emit VirtualPriceUpdated(virtualPrice);
     }
 
     /// @notice Called during the harvesting proccess once funds are received from another chain
     /// Pays out all pending withdrawals since last harvest
-    function payPendingWithdraws() internal {
+    /// @dev Will only be called if funds were not originally deployed on this chain
+    function payPendingWithdrawals() internal {
         if (pendingWithdrawals == 0) {
             return;
         }
@@ -539,21 +571,55 @@ contract SavorVault is Savor4626, Ownable {
             _amount = sharesPending[_currentAddress];
             if (_amount > 0) {
                 UNDERLYING.safeTransfer(_currentAddress, _amount);
+                sharesPending[_currentAddress] = 0;
             }
-
-            sharesPending[_currentAddress] = 0;
+            
         }
 
-        //Reset the queue
+        //Reset the queue   
         pendingWithdrawals = 0;
         delete waitingOnWithdrawals;
+
+        emit PendingWithdrawalsPayed();
     }
 
-    /// @notice Harvest a set of trusted strategies.
-    /// @param strategies The trusted strategies to harvest.
+    /// @notice The external function to be called by Keeper to initiate the full harvest logic
+    /// @dev This will first be called on the chain with the majority of assets if they need to be moved to another chain.
+    /// All cross chain swaps will be called in a seperate tx to simplify gas Calc.
+    /// Updating the virtual price will also be called seperatly since not all vaults will be update when this is called
+    /// @param toWithdraw The amount if any that should be pulled from the strategies
+    /// @param toDeposit The amount if any that should be deposited into a strategy
+    /// @param newFloat The new amount that should be set as float based on total Vault holdings
+    function runHarvest(uint256 toWithdraw, uint256 toDeposit, uint256 newFloat) external onlyKeeper {
+        require(toWithdraw == 0 || toDeposit == 0, "Cannot deposit and withdraw");
+        //Update vallues with harvest();
+        harvest();
+
+        //Withdraw or deposit into new strategy if needed
+        // Both cannot be greater than 0 but both could be 0
+        if(toWithdraw > 0) {
+            retrieveUnderlying(toWithdraw);
+        } 
+
+        //Pay out withdrawal queue after any funds have beend freed in case of rounding errors
+        // Virtual price will not have been updated so we can harvest before calling this
+        payPendingWithdrawals();
+        
+        if (toDeposit > 0) {
+            //Assumes the last strat is where we want to deposit. 
+            //The Withdrawal stack can be manually updated before this call if need be
+            depositIntoStrategy(withdrawalStack[withdrawalStack.length - 1], toDeposit);
+        }
+
+        //update the new float
+        setTargetFloat(newFloat);
+    }
+
+    /// @notice Harvest a set of trusted strategies. 
     /// @dev Will always revert if called outside of an active
     /// harvest window or before the harvest delay has passed.
-    function harvest(Strategy[] calldata strategies) external onlyOwner {
+    /// This automatically charges fees when called
+    function harvest() internal {
         // If this is the first harvest after the last window:
         if (block.timestamp >= lastHarvest + harvestDelay) {
             // Set the harvest window's start timestamp.
@@ -566,6 +632,7 @@ contract SavorVault is Savor4626, Ownable {
                 "BAD_HARVEST_TIME"
             );
         }
+        Strategy[] memory strategies = withdrawalStack;
 
         // Get the Vault's current total strategy holdings.
         uint256 oldTotalStrategyHoldings = totalStrategyHoldings;
@@ -646,6 +713,7 @@ contract SavorVault is Savor4626, Ownable {
 
             emit HarvestDelayUpdated(msg.sender, newHarvestDelay);
         }
+
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -676,8 +744,8 @@ contract SavorVault is Savor4626, Ownable {
     /// @param strategy The trusted strategy to deposit into.
     /// @param underlyingAmount The amount of underlying tokens in float to deposit.
     function depositIntoStrategy(Strategy strategy, uint256 underlyingAmount)
-        external
-        onlyOwner
+        public
+        onlyKeeper
     {
         // A strategy must be trusted before it can be deposited into.
         require(getStrategyData[strategy].trusted, "UNTRUSTED_STRATEGY");
@@ -707,7 +775,7 @@ contract SavorVault is Savor4626, Ownable {
     /// @dev Withdrawing from a strategy will not remove it from the withdrawal stack.
     function withdrawFromStrategy(Strategy strategy, uint256 underlyingAmount)
         external
-        onlyOwner
+        onlyKeeper
     {
         // A strategy must be trusted before it can be withdrawn from.
         require(getStrategyData[strategy].trusted, "UNTRUSTED_STRATEGY");

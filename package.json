@@ -1,6 +1,6 @@
 {
   "name": "Savor-Finance",
-  "version": "1.0",
+  "version": "1.0.0",
   "scripts": {
     "hardhat": "hardhat",
     "compile": "hardhat compile",

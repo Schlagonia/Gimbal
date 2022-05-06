@@ -2,42 +2,43 @@ const { ethers } = require("hardhat");
 const hre = require("hardhat");
 const { networks } = require('../hardhat.config')
 const { BigNumber } = require("ethers");
-import { Wallet, ContractTransaction, Signer } from 'ethers';
-import { HardhatRuntimeEnvironment } from 'hardhat/types';
-import { isAddress } from 'ethers/lib/utils';
-import { isZeroAddress } from 'ethereumjs-util';
+const { Wallet, ContractTransaction, Signer } = require('ethers');
 
-//export const stringToBigNumber = (amount: string): BigNumber => new BigNumber(amount);
-export const getWallet = (network: string) => {
+
+function stringToBigNumber(amount) {
+  return new BigNumber(amount);
+}
+
+const getWallet = (network) => {
   const provider = new ethers.providers.JsonRpcProvider(networks.network.url)
   return new ethers.Wallet(process.env.PRIV_KEY, provider)
 }
 
-export const sleep = (milliseconds: number) => {
+const sleep = (milliseconds) => {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 };
 
-export const createRandomAddress = () => Wallet.createRandom().address;
+const createRandomAddress = () => Wallet.createRandom().address;
 
-export const evmSnapshot = async () => await hre.ethers.provider.send('evm_snapshot', []);
+const evmSnapshot = async () => await hre.ethers.provider.send('evm_snapshot', []);
 
-export const evmRevert = async (id: string) => hre.ethers.provider.send('evm_revert', [id]);
+const evmRevert = async (id) => hre.ethers.provider.send('evm_revert', [id]);
 
-export const timeLatest = async () => {
+const timeLatest = async () => {
   const block = await hre.ethers.provider.getBlock('latest');
   return new BigNumber(block.timestamp);
 };
 
-export const advanceBlock = async (timestamp: number) =>
+const advanceBlock = async (timestamp) =>
   await hre.ethers.provider.send('evm_mine', [timestamp]);
 
-export const increaseTime = async (secondsToIncrease: number) => {
+const increaseTime = async (secondsToIncrease) => {
   await hre.ethers.provider.send('evm_increaseTime', [secondsToIncrease]);
   await hre.ethers.provider.send('evm_mine', []);
 };
 
 // Workaround for time travel tests bug: https://github.com/Tonyhaenn/hh-time-travel/blob/0161d993065a0b7585ec5a043af2eb4b654498b8/test/test.js#L12
-export const advanceTimeAndBlock = async function (forwardTime: number) {
+const advanceTimeAndBlock = async function (forwardTime) {
   const currentBlockNumber = await hre.ethers.provider.getBlockNumber();
   const currentBlock = await hre.ethers.provider.getBlock(currentBlockNumber);
 
@@ -56,19 +57,19 @@ export const advanceTimeAndBlock = async function (forwardTime: number) {
   await hre.ethers.provider.send('evm_mine', []);
 };
 
-export const waitForTx = async (tx: ContractTransaction) => await tx.wait(1);
+const waitForTx = async (tx) => await tx.wait(1);
 
-export const filterMapBy = (raw: { [key: string]: any }, fn: (key: string) => boolean) =>
+const filterMapBy = (raw, fn) =>
   Object.keys(raw)
     .filter(fn)
-    .reduce<{ [key: string]: any }>((obj, key) => {
+    .reduce((obj, key) => {
       obj[key] = raw[key];
       return obj;
     }, {});
 
-export const chunk = <T>(arr: Array<T>, chunkSize: number): Array<Array<T>> => {
+const chunk = (arr, chunkSize) => {
   return arr.reduce(
-    (prevVal: any, currVal: any, currIndx: number, array: Array<T>) =>
+    (prevVal, currVal, currIndx, array) =>
       !(currIndx % chunkSize)
         ? prevVal.concat([array.slice(currIndx, currIndx + chunkSize)])
         : prevVal,
@@ -76,34 +77,37 @@ export const chunk = <T>(arr: Array<T>, chunkSize: number): Array<Array<T>> => {
   );
 };
 
-export const impersonateAddress = async (address: string): Promise<any> => {
+const impersonateAddress = async (address) => {
   
-    await (hre as HardhatRuntimeEnvironment).network.provider.request({
+    await hre.network.provider.request({
       method: 'hardhat_impersonateAccount',
       params: [address],
     });
   
-  const signer = await hre.ethers.provider.getSigner(address);
+  const signer = hre.ethers.provider.getSigner(address);
 
   return {
     signer
   };
 };
 
-export const omit = <T, U extends keyof T>(obj: T, keys: U[]): Omit<T, U> =>
-  (Object.keys(obj) as U[]).reduce(
+const omit = (obj, keys) =>
+  (Object.keys(obj) ).reduce(
     (acc, curr) => (keys.includes(curr) ? acc : { ...acc, [curr]: obj[curr] }),
-    {} as Omit<T, U>
+    {}
   );
 
-export const impersonateAccountsHardhat = async (accounts: string[]) => {
+const impersonateAccountsHardhat = async (accounts) => {
 
   // eslint-disable-next-line no-restricted-syntax
   for (const account of accounts) {
     // eslint-disable-next-line no-await-in-loop
-    await (hre as HardhatRuntimeEnvironment).network.provider.request({
+    await hre.network.provider.request({
       method: 'hardhat_impersonateAccount',
       params: [account],
     });
   }
 };
+
+
+module.exports = { impersonateAccountsHardhat, omit, impersonateAddress, chunk, filterMapBy, waitForTx, advanceTimeAndBlock, increaseTime , advanceBlock, timeLatest, evmRevert, evmSnapshot, createRandomAddress, sleep, getWallet, stringToBigNumber }

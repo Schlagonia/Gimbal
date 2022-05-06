@@ -63,6 +63,9 @@ async function main() {
   console.log("Targe Float Set")
 
   // //Set harvest deplay and Harvest Window
+  //Need to set Harvest Delay first for locked profit
+
+  //Then can set a harvest window if desired
  
 
   // //Initialize the Vault
