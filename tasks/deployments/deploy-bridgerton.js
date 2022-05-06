@@ -1,10 +1,6 @@
-//const { addresses } = require('../../helpers/constants')
-//const { getWallet } = require('../../helpers/misc-utils')
-
-const addresses = {
-  rinkeby: '0x82A0F5F531F9ce0df1DF5619f74a0d3fA31FF561',
-  mumbai :  '0x817436a076060D158204d955E5403b6Ed0A5fac0',
-}
+const { getObject } = require('../../helpers/utils.js')
+const { chainConfigs } = require('../../helpers/constants')
+const { deployments } = require('../../helpers/deployments.js')
 
 task('deploy-bridgerton', 'Deploy Bridgerton Contract')
   .addFlag('verify', 'Verify Contracts on Etherscan')
@@ -14,22 +10,42 @@ task('deploy-bridgerton', 'Deploy Bridgerton Contract')
       const currentNetwork = hre.network
       const name = currentNetwork.name
       
-      console.log(`Deploying Bridgerton contract to ${name} network...`)
+      console.log(`Deploying Bridgerton contract to ${name} network`)
 
-      let stargateRouter = addresses[name]
-      console.log("Using Strargate router", stargateRouter)
+      let chainConfig = getObject(chainConfigs, name)
+
+      let router = chainConfig.stargateRouter
+      
+      console.log("Using Strargate router", router)
 
       const Bridgerton = await ethers.getContractFactory('Bridgerton')
 
-      console.log('Deploying')
+      console.log('Deploying.........')
       const bridgerton = await Bridgerton.deploy(
-        stargateRouter
+        router
       )
       await bridgerton.deployed()
 
       console.log("Bridgerton Deployed to: ", bridgerton.address)
 
+      //Update the address in the Deployments file
+      // Does not work yet
+      let chainDeploys = getObject(deployments, name);
+      console.log("ChainDeploys ", chainDeploys)
+      chainDeploys.bridgerton.push(bridgerton.address)
+
+      console.log(`Updated the ${name} Bridgeton address in deployments.js to ${chainDeploys.bridgerton}`)
+
       //Add logic to verify contract once deployed
+      /*
+      console.log("Verifing Contract...")
+      params = {
+        address: bridgerton.address,
+        constructorArguments: router
+      }
+      await hre.run('verify', bridgerton.address, router)
+      console.log("Bridgerton Contract verified!")
+      */
 
     } catch(error) {
       console.log(error)

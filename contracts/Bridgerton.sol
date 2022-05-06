@@ -80,7 +80,7 @@ contract Bridgerton is Ownable {
     /// @param _dstChainId ID of chain we are swapping to
     /// @param _toAddress Address of the vault that we want to swap on behalf of
     /// @param _vaultTo The Strategy that the receiving Vault should send funds to
-    function _externalGetSwapFee(
+    function externalGetSwapFee(
         uint16 _dstChainId,
         address _toAddress,
         address _vaultTo

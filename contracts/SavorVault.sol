@@ -43,11 +43,9 @@ contract SavorVault is Savor4626, Ownable {
     /// @notice Creates a new Vault that accepts a specific underlying token.
     /// @param _UNDERLYING The ERC20 compliant token the Vault should accept.
     /// @param _bridgerton The address of the Bridgerton contract on this chain
-    /// @param _keeper The address to set ass keeper
     constructor(
         ERC20 _UNDERLYING,
-        address _bridgerton,
-        address _keeper
+        address _bridgerton
     )
         Savor4626(
             // Underlying token
@@ -63,7 +61,7 @@ contract SavorVault is Savor4626, Ownable {
         BASE_UNIT = 10**decimals;
 
         Bridgerton = IBridgerton(_bridgerton);
-        keeper = _keeper;
+        keeper = msg.sender;
 
         // Prevent minting of rvTokens until
         // the initialize function is called.
