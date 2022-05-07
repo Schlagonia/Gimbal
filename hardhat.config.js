@@ -3,11 +3,21 @@ require('dotenv').config();
 require("@nomiclabs/hardhat-etherscan");
 require('./tasks/deployments/deploy-bridgerton')
 require('./tasks/deployments/deploy-vault')
+require('./solidity-coverage')
 /*
 To run a script on a fork open a terminal within this repo and run "npx hardhat node --fork YOUR_FULL_MORALIS_URL"
 Then open a new terminal in this repo and run "npx hardhat run SCRIPT_TO_RUN --network localhost"
 */
 
+// This is a sample Hardhat task. To learn how to create your own go to
+// https://hardhat.org/guides/create-task.html
+// task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
+//   const accounts = await hre.ethers.getSigners();
+
+//   for (const account of accounts) {
+//     console.log(account.address);
+//   }
+// });
 // To learn how to create your own go to
 // https://hardhat.org/guides/create-task.html
 
@@ -31,10 +41,6 @@ module.exports = {
   },
   networks: {
     hardhat: {
-      chainId: 137, // Specified in case we are not forking
-      forking: {
-        url: `https://speedy-nodes-nyc.moralis.io/${moralisKey}/polygon/mainnet`
-      },
     },
     rinkeby: {
       url: `https://speedy-nodes-nyc.moralis.io/${moralisKey}/eth/rinkeby`,

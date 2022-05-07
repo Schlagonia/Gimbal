@@ -29,7 +29,8 @@ task('deploy-bridgerton', 'Deploy Bridgerton Contract')
       console.log("Bridgerton Deployed to: ", bridgerton.address)
 
       //Update the address in the Deployments file
-      setDeployment(chain, 'bridgerton', bridgerton.address)
+      // Need to implement fs.writeFileSyncLogic to update addressses in deplyments file after deployed
+      //setDeployment(chain, 'bridgerton', bridgerton.address)
 
       //Add logic to verify contract once deployed
       /*
