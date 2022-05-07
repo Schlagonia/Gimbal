@@ -1,6 +1,4 @@
 node_modules
-<<<<<<< HEAD
-=======
 .env
 coverage
 coverage.json
@@ -9,4 +7,3 @@ typechain
 #Hardhat files
 cache
 artifacts
->>>>>>> 22ec51e28509e745aeb722d6026a20477c0d7f5b
