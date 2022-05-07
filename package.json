@@ -21,7 +21,8 @@
     "bridgerton:avalanche:deploy": "npm run compile && npm run hardhat:avalanche -- deploy-bridgerton --verify",
     "bridgerton:fuji:deploy": "npm run compile && npm run hardhat:fuji -- deploy-bridgerton --verify",
     "bridgerton:arbitrum:deploy": "npm run compile && npm run hardhat:arbitrum -- deploy-bridgerton --verify",
-    "bridgerton:arbitrumRinkebyTestnet:deploy": "npm run compile && npm run hardhat:arbitrumRinkebyTestnet -- deploy-bridgerton --verify"
+    "bridgerton:arbitrumRinkebyTestnet:deploy": "npm run compile && npm run hardhat:arbitrumRinkebyTestnet -- deploy-bridgerton --verify",
+    "vault:rinkeby:deploy" : "npm run compile && npm run hardhat:rinkeby -- deploy-vault --coin usdc"
   },
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.5",

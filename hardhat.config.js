@@ -2,6 +2,7 @@ require("@nomiclabs/hardhat-waffle");
 require('dotenv').config();
 require("@nomiclabs/hardhat-etherscan");
 require('./tasks/deployments/deploy-bridgerton')
+require('./tasks/deployments/deploy-vault')
 /*
 To run a script on a fork open a terminal within this repo and run "npx hardhat node --fork YOUR_FULL_MORALIS_URL"
 Then open a new terminal in this repo and run "npx hardhat run SCRIPT_TO_RUN --network localhost"
@@ -36,8 +37,7 @@ module.exports = {
       },
     },
     rinkeby: {
-      //url: `https://speedy-nodes-nyc.moralis.io/${moralisKey}/eth/rinkeby`,
-      url: 'https://eth-rinkeby.alchemyapi.io/v2/57fBUFQH5hw39ONZfgib6zp4bdA5r8MQ',
+      url: `https://speedy-nodes-nyc.moralis.io/${moralisKey}/eth/rinkeby`,
       accounts: [account]
     },
     localhost: {

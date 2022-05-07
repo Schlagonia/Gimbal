@@ -2,10 +2,11 @@ const { getObject } = require('../../helpers/utils.js')
 const { chainConfigs } = require('../../helpers/constants')
 const { deployments } = require('../../helpers/deployments.js')
 
-task('deploy-vault', 'Deploy Savor Vault Contract')
-.addParam('coin', 'Coin to set as Vaults Underlying')
+task('deploy-vault', 'Deploy Savor Vault Contract'
+)
+  .addParam('coin', 'Coin to set as Vaults Underlying')
   .addFlag('verify', 'Verify Contracts on Etherscan')
-  .setAction( async () => {
+  .setAction( async ({ coin }) => {
     try{
     
       const currentNetwork = hre.network
@@ -16,11 +17,11 @@ task('deploy-vault', 'Deploy Savor Vault Contract')
       let chainConfig = getObject(chainConfigs, name)
       let chainDeploys = getObject(deployments, name);
       
-      let underlying = chainConfig.coin
+      let underlying = chainConfig[coin]
       let bridgerton = chainDeploys.bridgerton[-1]
-      
-      console.log(`Using ${coin} as underlying for vault`)
 
+      console.log(`Using ${coin} as underlying for vault at ${underlying}`)
+      console.log('Bridgerton ', bridgerton)
       const Vault = await ethers.getContractFactory('SavorVault')
 
       console.log('Deploying Vault.........')

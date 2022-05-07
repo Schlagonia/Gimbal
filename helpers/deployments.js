@@ -1,6 +1,5 @@
 
-
-const deployments = [
+deployments = [
     {
      chain: 'rinkeby',
      bridgerton: '',
@@ -15,7 +14,7 @@ const deployments = [
     },
     {
      chain: 'mumbai',
-     bridgerton: [],
+     bridgerton: '',
      Vault: '',
      strategies: []
     },
@@ -57,6 +56,16 @@ const deployments = [
     }
 ]
 
+const setDeployment = (chain, contract, address) => {
+    let i = getIndex(deployments, chain)
+    let deployCopy = deployments
+
+    deployCopy[i][contract] = address;
+    deployments = deployCopy
+    console.log(`${chain}'s ${contract} contract updated to ${deployments[i][contract]}`)
+}
+
 module.exports = {
-    deployments
+    deployments,
+    setDeployment
 }

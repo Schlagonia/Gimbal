@@ -1,6 +1,6 @@
 const { getObject } = require('../../helpers/utils.js')
 const { chainConfigs } = require('../../helpers/constants')
-const { deployments } = require('../../helpers/deployments.js')
+const { deployments, setDeployment } = require('../../helpers/deployments.js')
 
 task('deploy-bridgerton', 'Deploy Bridgerton Contract')
   .addFlag('verify', 'Verify Contracts on Etherscan')
@@ -8,11 +8,11 @@ task('deploy-bridgerton', 'Deploy Bridgerton Contract')
     try{
     
       const currentNetwork = hre.network
-      const name = currentNetwork.name
+      const chain = currentNetwork.name
       
-      console.log(`Deploying Bridgerton contract to ${name} network`)
+      console.log(`Deploying Bridgerton contract to ${chain} network`)
 
-      let chainConfig = getObject(chainConfigs, name)
+      let chainConfig = getObject(chainConfigs, chain)
 
       let router = chainConfig.stargateRouter
       
@@ -29,12 +29,7 @@ task('deploy-bridgerton', 'Deploy Bridgerton Contract')
       console.log("Bridgerton Deployed to: ", bridgerton.address)
 
       //Update the address in the Deployments file
-      // Does not work yet
-      let chainDeploys = getObject(deployments, name);
-      console.log("ChainDeploys ", chainDeploys)
-      chainDeploys.bridgerton.push(bridgerton.address)
-
-      console.log(`Updated the ${name} Bridgeton address in deployments.js to ${chainDeploys.bridgerton}`)
+      setDeployment(chain, 'bridgerton', bridgerton.address)
 
       //Add logic to verify contract once deployed
       /*
