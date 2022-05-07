@@ -38,7 +38,6 @@ describe("Bridgerton contract", function () {
     vault = await Vault.deploy(
       underlying.address,
       bridgerton.address,
-      accounts[0].address //TODO: check the test of keepers and their creation, for now accounts[0].address is enough
     );
     await vault.deployed();
 
@@ -47,7 +46,6 @@ describe("Bridgerton contract", function () {
     vaultSecond = await VaultSecond.deploy(
       underlying.address,
       bridgerton.address,
-      accounts[0].address //TODO: check the test of keepers and their creation, for now accounts[0].address is enough
     );
     await vaultSecond.deployed();
 
