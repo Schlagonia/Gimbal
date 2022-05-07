@@ -40,7 +40,8 @@ module.exports = {
     hardhat: {
     },
     rinkeby: {
-      url: `https://speedy-nodes-nyc.moralis.io/${moralisKey}/eth/rinkeby`,
+      //url: `https://speedy-nodes-nyc.moralis.io/${moralisKey}/eth/rinkeby`,
+      url: 'https://eth-rinkeby.alchemyapi.io/v2/57fBUFQH5hw39ONZfgib6zp4bdA5r8MQ',
       accounts: [account]
     },
     localhost: {
