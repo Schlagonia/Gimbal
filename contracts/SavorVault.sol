@@ -1132,6 +1132,8 @@ contract SavorVault is Savor4626, Ownable {
         // Mark the Vault as initialized.
         isInitialized = true;
 
+        virtualPrice = 1e18;
+
         // Open for deposits.
         totalSupply = 0;
 
