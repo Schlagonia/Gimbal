@@ -10,44 +10,84 @@ import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 // Import interfaces for many popular DeFi projects, or add your own!
-//import "../interfaces/<protocol>/<Interface>.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import '../Interfaces/Aave/V3/IPool.sol';
+import '../Interfaces/Aave/V3/IProtocolDataProvider.sol';
+import {IAToken} from '../Interfaces/Aave/V3/IAToken.sol';
 
-contract Strategy is BaseStrategy {
+contract AaveLender is BaseStrategy {
     using SafeERC20 for IERC20;
     using Address for address;
 
-    constructor(address _vault) BaseStrategy(_vault) {
-        // You can set these parameters on deployment to whatever you underlying
-        // maxReportDelay = 6300;
-        // profitFactor = 100;
-        // debtThreshold = 0;
+     // AAVE protocol address
+    IProtocolDataProvider private protocolDataProvider;
+    IPool private lendingPool;
+    IAToken aToken;
+
+    uint16 private constant referral = 0; // Aave's referral code
+
+    constructor(
+        address _vault, 
+        address _protocolDataProvider,
+        address _lendingPool
+    ) BaseStrategy(_vault) {
+        initializeThis(_protocolDataProvider, _lendingPool);
+    }
+
+    function initializeThis(
+        address _protocolDataProvider,
+        address _lendingPool
+    ) internal {
+        protocolDataProvider = IProtocolDataProvider(_protocolDataProvider);
+        lendingPool = IPool(_lendingPool);
+
+        // Set aave tokens
+        (address _aToken, , ) =
+            protocolDataProvider.getReserveTokensAddresses(address(underlying));
+        aToken = IAToken(_aToken);
+
+        // approve spend aave spend
+        approveMaxSpend(address(underlying), _lendingPool);
+        approveMaxSpend(_aToken, _lendingPool);
+    }
+
+    function approveMaxSpend(address token, address spender) internal {
+        IERC20(token).safeApprove(spender, type(uint256).max);
     }
 
     // ******** OVERRIDE THESE METHODS FROM BASE CONTRACT ************
 
     function name() external pure override returns (string memory) {
         // Add your own name here, suggestion e.g. "StrategyCreamYFI"
-        return "Strategy<ProtocolName><TokenType>";
+        return "Generic Aave Lender";
+    }
+
+    function aaveBalance() public view returns(uint256) {
+        return aToken.balanceOf(address(this));
+    }
+
+    function balanceOfToken(address _token) public view returns (uint256) {
+        return IERC20(_token).balanceOf(address(this));
     }
 
     function estimatedTotalAssets() public view override returns (uint256) {
-        // TODO: Build a more accurate estimate using the value of all positions in terms of `underlying`
-        return underlying.balanceOf(address(this));
-    }
+        return balanceOfToken(address(underlying)) + aaveBalance();
+    } 
 
     /// @notice This is called to get an accurate non-manipulatable amount the strategy holds
     /// Used by the vault to get an accurate account during the harvest
     /// @dev may change the state pending on the current strategy being deployed
     /// @return The actual amount of assets the strategy hold in underlying
-    function actualTotalAssets() public override returns(uint256){
-
+    function actualTotalAssets() public view override returns(uint256){
+        return estimatedTotalAssets();
     }
 
     /// @notice Internal Function called after deposit to perform deposit logic
     /// @param _amount The amount of underlying to be deposited
     /// @return An error code, or 0 if the deposit was successful.
     function _depositSome(uint256 _amount) internal override returns(uint256){
-
+        _depositCollateral(_amount);
+        return 0;
     }
 
     /// @notice Internal Function called to perform withdraw logi
@@ -55,13 +95,27 @@ contract Strategy is BaseStrategy {
     /// @return err error code, or 0 if the withdraw was successful.
     /// @return _amountFreed amount actually freed
     function _withdrawSome(uint256 _amount) internal override returns(uint256 err, uint256 _amountFreed){
-
+        _withdrawCollateral(_amount);
+        err = 0;
+        _amountFreed = Math.min(_amount, balanceOfToken(address(underlying)));
     }
 
     /// @notice This function is used during emergency exit to liquidate all of the Strategy's positions back to the Underlying.
-    /// @dev is only called during after the emercentExit is set to True
+    /// @dev is only called after the emercentExit is set to True
     function liquidateAllPositions() internal override {
+        _withdrawCollateral(type(uint256).max);
+    }
 
+    function _depositCollateral(uint256 amount) internal returns (uint256) {
+        if (amount == 0) return 0;
+        lendingPool.supply(address(underlying), amount, address(this), referral);
+        return amount;
+    }
+
+    function _withdrawCollateral(uint256 amount) internal returns (uint256) {
+        if (amount == 0) return 0;
+        lendingPool.withdraw(address(underlying), amount, address(this));
+        return amount;
     }
 
     function prepareMigration(address _newStrategy) internal override {

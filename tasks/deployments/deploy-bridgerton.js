@@ -18,9 +18,9 @@ task('deploy-bridgerton', 'Deploy Bridgerton Contract')
       console.log("Using Strargate router", router)
 
       const Bridgerton = await ethers.getContractFactory('Bridgerton')
-
+  
       console.log('Deploying.........')
- 
+ /*
       const bridgerton = await Bridgerton.deploy(
         router
       )

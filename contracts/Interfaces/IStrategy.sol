@@ -27,13 +27,19 @@ interface Strategy {
     /// @return The value in Underlying the strategy currently holds
     function estimatedTotalAssets() external view returns (uint256);
 
+    /// @notice This is called to get an accurate non-manipulatable amount the strategy holds
+    /// Used by the vault to get an accurate account during the harvest
+    /// @dev may change the state pending on the current strategy being deployed
+    /// @return The actual amount of assets the strategy hold in underlying
+    function actualTotalAssets() external returns(uint256);
+
     /// @notice Returns the total amount of debt the Strategy is currently allocated from the Vault
     /// @return The amount the strategy owes the vault in Underlying
     function currentDebt() external view returns(uint256);
 
     /// @notice Returns true if the strategy is currently active
     /// @dev Check if EITHER the the strategy has any asset OR Debt from the vault
-    ///         could have dust left in and return true but Vault wont call it
+    /// could have dust left in and return true but Vault wont call it
     function isActive() external view returns (bool);
 
     /// @notice Deposit a specific amount of underlying tokens into the strategy.

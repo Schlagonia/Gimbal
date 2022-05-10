@@ -142,6 +142,12 @@ abstract contract BaseStrategy {
      */
     function estimatedTotalAssets() public view virtual returns (uint256);
 
+    /// @notice This is called to get an accurate non-manipulatable amount the strategy holds
+    /// Used by the vault to get an accurate account during the harvest
+    /// @dev may change the state pending on the current strategy being deployed
+    /// @return The actual amount of assets the strategy hold in underlying
+    function actualTotalAssets() public virtual returns(uint256);
+
     /// @notice Returns the total amount of debt the Strategy is currently allocated from the Vault
     /// @return The amount the strategy owes the vault in Underlying
     function currentDebt() public view returns(uint256) {
@@ -186,13 +192,13 @@ abstract contract BaseStrategy {
     /// @notice Withdraws `_amountNeeded` to `vault`.
     /// @dev This may only be called by the Vault.
     /// @param _amountNeeded How much `underlying` to withdraw.
-    /// @return _error error code, or 0 if the withdraw was successful.
+    /// @return err error code, or 0 if the withdraw was successful.
     /// @return amountFreed Actual amount freed
-    function withdraw(uint256 _amountNeeded) external returns (uint256 _error, uint256 amountFreed) {
+    function withdraw(uint256 _amountNeeded) external returns (uint256 err, uint256 amountFreed) {
         require(msg.sender == address(vault), "!vault");
         // Liquidate as much as possible to `underlying`, up to `_amountNeeded`
         
-        ( _error, amountFreed) = _withdrawSome(_amountNeeded);
+        ( err, amountFreed) = _withdrawSome(_amountNeeded);
         // Send it directly back (NOTE: Using `msg.sender` saves some gas here)
         SafeERC20.safeTransfer(underlying, msg.sender, amountFreed);
     

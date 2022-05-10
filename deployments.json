@@ -1,7 +1,7 @@
 {
   "rinkeby": {
     "bridgerton": "0x6290fd4B32Dd0056eFB3D8E6319599A34cCCc387",
-    "vault": "0x7297e17653d1a6E26896fFAE19020d567A694B24"
+    "vault": "0x85a3A446737d8CE0c932A05064289622b77FCE27"
   },
   "polygon": {
     "bridgerton": "",

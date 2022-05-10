@@ -10,6 +10,21 @@ import { Strategy } from './IStrategy.sol';
 
 interface IVault is IERC4626 {
     /*///////////////////////////////////////////////////////////////
+                                Custom ERC4626 add ons
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Mapping that tracks how many shares are pending withdraw for each address in waitingOnWithdrawls
+    /// @dev To find the amount user can withdraw take balanceOf[owner] - sharesPending[owner]
+    /// The value of all shares pending will be sent to the owner on the next harvest 
+    function sharesPending(address _address) external view returns(uint256);
+
+    /// @notice Returns the total amount of shares that needs to be pulled on the next harvest from another chain
+    function pendingWithdrawals() external view returns(uint256);
+
+    /// @notice Returns  dynamic Array of addresses that need to be payed a certain amount of shares on next harvest
+    function waitingOnWithdrawals() external view returns(uint256[] memory);
+
+    /*///////////////////////////////////////////////////////////////
                                 IMMUTABLES
     //////////////////////////////////////////////////////////////*/
 

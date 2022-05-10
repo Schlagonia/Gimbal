@@ -56,7 +56,7 @@ task('deploy-vault', 'Deploy Savor Vault Contract'
       tx = await vault.setHarvestDelay(harvestDelay)
       await tx.wait()
       console.log("Harvest delay set")
-      //Then can set a harvest window if desired
+      //Then can set a harvest window if desired otherwise it will be set to 0
  
 
       // //Initialize the Vault

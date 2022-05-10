@@ -22,7 +22,15 @@
     "bridgerton:fuji:deploy": "npm run compile && npm run hardhat:fuji -- deploy-bridgerton --verify",
     "bridgerton:arbitrum:deploy": "npm run compile && npm run hardhat:arbitrum -- deploy-bridgerton --verify",
     "bridgerton:arbitrumRinkebyTestnet:deploy": "npm run compile && npm run hardhat:arbitrumRinkebyTestnet -- deploy-bridgerton --verify",
-    "vault:rinkeby:deploy" : "npm run compile && npm run hardhat:rinkeby -- deploy-vault --coin usdc"
+    "vault:rinkeby:deploy" : "npm run compile && npm run hardhat:rinkeby -- deploy-vault --coin usdc",
+    "vault:plygon:deploy" : "npm run compile && npm run hardhat:polygon -- deploy-vault --coin usdc",
+    "vault:mumbai:deploy" : "npm run compile && npm run hardhat:mumbai -- deploy-vault --coin usdc",
+    "vault:opera:deploy" : "npm run compile && npm run hardhat:opera -- deploy-vault --coin usdc",
+    "vault:operaTestnet:deploy" : "npm run compile && npm run hardhat:operaTestnet -- deploy-vault --coin usdc",
+    "vault:avalanche:deploy" : "npm run compile && npm run hardhat:avalanche -- deploy-vault --coin usdc",
+    "vault:fuji:deploy" : "npm run compile && npm run hardhat:fuji -- deploy-vault --coin usdc",
+    "vault:arbitrum:deploy" : "npm run compile && npm run hardhat:arbitrum -- deploy-vault --coin usdc",
+    "vault:arbitrumRinkebyTestnet:deploy" : "npm run compile && npm run hardhat:arbitrumRinkebyTestnet -- deploy-vault --coin usdc"
   },
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.5",
