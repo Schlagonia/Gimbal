@@ -1,6 +1,5 @@
-const { getObject } = require('../../helpers/utils.js')
+const { getObject, updateAddress } = require('../../helpers/utils.js')
 const { chainConfigs } = require('../../helpers/constants')
-const { deployments, setDeployment } = require('../../helpers/deployments.js')
 
 task('deploy-bridgerton', 'Deploy Bridgerton Contract')
   .addFlag('verify', 'Verify Contracts on Etherscan')
@@ -21,6 +20,7 @@ task('deploy-bridgerton', 'Deploy Bridgerton Contract')
       const Bridgerton = await ethers.getContractFactory('Bridgerton')
 
       console.log('Deploying.........')
+ 
       const bridgerton = await Bridgerton.deploy(
         router
       )
@@ -29,9 +29,10 @@ task('deploy-bridgerton', 'Deploy Bridgerton Contract')
       console.log("Bridgerton Deployed to: ", bridgerton.address)
 
       //Update the address in the Deployments file
-      // Need to implement fs.writeFileSyncLogic to update addressses in deplyments file after deployed
-      //setDeployment(chain, 'bridgerton', bridgerton.address)
-
+      console.log("Updating Bridgerton Address")
+      updateAddress(chain, 'bridgerton', '0x6290fd4B32Dd0056eFB3D8E6319599A34cCCc387')
+      console.log("Address updated in Deployments.json File")
+    
       //Add logic to verify contract once deployed
       /*
       console.log("Verifing Contract...")

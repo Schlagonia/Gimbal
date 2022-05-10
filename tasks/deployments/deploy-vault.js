@@ -1,6 +1,11 @@
-const { getObject } = require('../../helpers/utils.js')
-const { chainConfigs } = require('../../helpers/constants')
-const { deployments } = require('../../helpers/deployments.js')
+const { getObject, updateAddress } = require('../../helpers/utils.js')
+const { 
+  chainConfigs, 
+  targetFloat, 
+  targetFee,
+  harvestDelay
+ } = require('../../helpers/constants')
+const deployments = require('../../deployments.json')
 
 task('deploy-vault', 'Deploy Savor Vault Contract'
 )
@@ -10,15 +15,14 @@ task('deploy-vault', 'Deploy Savor Vault Contract'
     try{
     
       const currentNetwork = hre.network
-      const name = currentNetwork.name
+      const chain = currentNetwork.name
       
-      console.log(`Deploying Savor Vault contract to ${name} network`)
+      console.log(`Deploying Savor Vault contract to ${chain} network`)
 
-      let chainConfig = getObject(chainConfigs, name)
-      let chainDeploys = getObject(deployments, name);
+      let chainConfig = getObject(chainConfigs, chain)
       
       let underlying = chainConfig[coin]
-      let bridgerton = chainDeploys.bridgerton[-1]
+      let bridgerton = deployments[chain]['bridgerton']
 
       console.log(`Using ${coin} as underlying for vault at ${underlying}`)
       console.log('Bridgerton ', bridgerton)
@@ -33,12 +37,40 @@ task('deploy-vault', 'Deploy Savor Vault Contract'
 
       console.log("Vault Deployed to: ", vault.address)
 
-      //Update the address in the Deployments file
-      // Does not work yet
-      
-      chainDeploys.vault.push(vault.address)
+       // //set the fee percent
+      // Sets performance fee to 10%
+      console.log("Setting performance fee...")
+      let tx = await vault.setFeePercent(targetFee)
+      await tx.wait()
+      console.log("Perforance fee set")
 
-      console.log(`Updated the ${name} Vault address in deployments.js to ${chainDeploys.vault}`)
+        // //Set Target Float
+      console.log("Setting the Target Float Amount...")
+      tx = await vault.setTargetFloat(targetFloat)
+      await tx.wait()
+      console.log("Targe Float Set")
+
+      // //Set harvest deplay and Harvest Window
+      //Need to set Harvest Delay first for locked profit
+      console.log("Setting harvest delay...")
+      tx = await vault.setHarvestDelay(harvestDelay)
+      await tx.wait()
+      console.log("Harvest delay set")
+      //Then can set a harvest window if desired
+ 
+
+      // //Initialize the Vault
+      console.log("Initiliazing Vault...")
+      tx = await vault.initialize()
+      await tx.wait()
+      console.log("Vault initiliazed")
+
+      console.log("Vault Ready to Go")
+
+      //Update the address in the Deployments file
+      updateAddress(chain, 'vault', vault.address)
+
+      console.log(`Updated the ${chain} Vault address in deployments.json`)
 
       //Add logic to verify contract once deployed
       /*

@@ -11,7 +11,7 @@ This repository is built using hardhat.
 To Setup:
     1. Clone Repo on to your local device
     2. run "npm install"  to install dependencies
-    3. Create an .env file and copy .en.example in filling in the info for each variable
+    3. Create an .env file and copy envexample in filling in the info for each variable
     4. Run "npx hardhat compile"
 
 ## Architecture
@@ -36,6 +36,7 @@ To submit contributions create a fork on your own Github with all changes propos
 Pull Requests will be reviewed by team members and merged if approved
 
 Make sure to 'Git Pull origin main' before working on any updates to make sure your branch is up to date
+
 ## Hardhat
 Try running some of the following tasks:
 

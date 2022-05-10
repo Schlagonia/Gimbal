@@ -1,0 +1,38 @@
+{
+  "rinkeby": {
+    "bridgerton": "0x6290fd4B32Dd0056eFB3D8E6319599A34cCCc387",
+    "vault": "0x7297e17653d1a6E26896fFAE19020d567A694B24"
+  },
+  "polygon": {
+    "bridgerton": "",
+    "vault": ""
+  },
+  "mumbai": {
+    "bridgerton": "0x6290fd4B32Dd0056eFB3D8E6319599A34cCCc387",
+    "vault": ""
+  },
+  "opera": {
+    "bridgerton": "",
+    "vault": ""
+  },
+  "operaTestnet": {
+    "bridgerton": "",
+    "vault": ""
+  },
+  "avalanche": {
+    "bridgerton": "",
+    "vault": ""
+  },
+  "fuji": {
+    "bridgerton": "",
+    "vault": ""
+  },
+  "arbitrum": {
+    "bridgerton": "",
+    "vault": ""
+  },
+  "arbitrumRinkebyTestnet": {
+    "bridgerton": "",
+    "vault": ""
+  }
+}

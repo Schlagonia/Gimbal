@@ -1,3 +1,6 @@
+const fs = require('fs');
+const path = './deployments.json'
+
 //returns an object in the list with chainId parameter
 const getObject = (list, chainId) => {
   
@@ -21,8 +24,18 @@ const getIndex = (list, chainId) => {
     }
 }
 
+const updateAddress = (chain, contract, address) => {
+    let deployments = require('../deployments.json')
+
+    deployments[chain][contract] = address
+    
+    data = JSON.stringify(deployments, null, 2)
+    
+    fs.writeFileSync(path, data)
+}
 
 module.exports = {
     getObject,
-    getIndex
+    getIndex,
+    updateAddress
 }
