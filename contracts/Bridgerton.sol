@@ -40,8 +40,7 @@ contract Bridgerton is Ownable {
         uint256 amountLD
     );
 
-    /// @notice Called when vault is deployed. Sets router and PID for Underlying
-    /// @dev PID needs to be adjusted before deployment for what chain and asset is being deployed per Stargate Docs
+    /// @notice Called when vault is deployed. Sets router for stargate
     /// @param _stargateRouter Address of the router
     constructor(address _stargateRouter) {
         stargateRouter = _stargateRouter;

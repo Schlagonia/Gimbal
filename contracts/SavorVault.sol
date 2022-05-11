@@ -198,8 +198,8 @@ contract SavorVault is Savor4626, Ownable {
                        TARGET FLOAT CONFIGURATION
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice The desired amount of the Vault's holdings to keep as float.
-    /// @dev An amount in Underlying that is updated on harvests.
+    /// @notice The desired amount of the Vault's holdings to keep as float expressed in 1e18
+    /// @dev An amount in targetFloat/1e18 that is updated on harvest based on if funds are deployed on this chain
     uint256 public targetFloat;
 
     /// @notice Emitted when the target float is updated.
@@ -216,6 +216,8 @@ contract SavorVault is Savor4626, Ownable {
         public
         onlyKeeper
     {
+        // A target float percentage over 100% doesn't make sense.
+        require(newTargetFloat <= 1e18, "TARGET_TOO_HIGH");
         // Update the target float percentage.
         targetFloat = newTargetFloat;
 
@@ -314,6 +316,7 @@ contract SavorVault is Savor4626, Ownable {
     /// @dev The function will transfer funds from the vault to Bridgerton to minimize gas usage for Bridgerton
     /// so that the gas estimate check is accurate
     /// Sends the full gas value in this contract and any extra is refunded to the tx.origin.
+    /// sgRecieved should be emitted once funds are recieved on the chain swapped to
     /// @param chainId The id of chain we are swapping to
     /// @param _amount The amount of underlying to swap
     /// @param _vaultTo The strategy the receving vault should deposit in if applicable
@@ -329,14 +332,12 @@ contract SavorVault is Savor4626, Ownable {
 
         UNDERLYING.safeTransfer(address(Bridgerton), _amount);
 
-        bool success = Bridgerton.swap{value: address(this).balance}(
+        Bridgerton.swap{value: address(this).balance}(
             chainId,
             address(UNDERLYING),
             _amount,
             _vaultTo
         );
-
-        require(success, "Transaction did not go through");
 
         emit FundsSwapped(chainId, _amount);
     }
@@ -366,7 +367,7 @@ contract SavorVault is Savor4626, Ownable {
     function afterDeposit(uint256, uint256) internal override {}
 
     /// @notice Called after the withdraw/redeem functions are called
-    /// @dev Checks if we hae enouogh funds on this chain for withdraw. If not updates the pending withdraws that will be payed out on next harvest
+    /// @dev Checks if we have enouogh funds on this chain for withdraw. If not updates the pending withdraws that will be payed out on next harvest
     /// @param assets The amount in Underlying trying to be withdrawn
     /// @param receiver Address of the user trying to withdrawl
     /// @return isAllAvailable Returns true if enough funds false if not
@@ -421,11 +422,14 @@ contract SavorVault is Savor4626, Ownable {
             // Compute the bare minimum amount we need for this withdrawal.
             uint256 floatMissingForWithdrawal = underlyingAmount - float;
 
+            // Compute the amount needed to reach our target float percentage.
+            uint256 floatMissingForTarget = (thisVaultsHoldings() - underlyingAmount).mulWadDown(targetFloat);
+
             //Compute the desired amount we would like to pull to keep float
-            uint256 desiredAmount = floatMissingForWithdrawal + targetFloat;
+            uint256 desiredAmount = floatMissingForWithdrawal + floatMissingForTarget;
 
             if(desiredAmount < totalStrategyHoldings) {
-                //If we have enought pull just whats needed
+                //If we have enough pull just whats needed
                 pullFromWithdrawalStack(desiredAmount);
             } else {
                 //If we dont have enough pull everything
@@ -447,7 +451,7 @@ contract SavorVault is Savor4626, Ownable {
     }
 
     /// @notice Returns the total supply from the vaults on other chains
-    function otherVaultsSupply() public view returns (uint256) {}
+    function otherVaultsSupply() internal view returns (uint256) {}
 
     /// @notice Returns the total supply of all the chains in order to properly calculate PPS
     /// @return Total shares from each vault on each chain
@@ -475,7 +479,7 @@ contract SavorVault is Savor4626, Ownable {
     }
 
     /// @notice Returns the total amount of underlying the vaults on other chains hold
-    function otherVaultsHoldings() public view returns (uint256) {}
+    function otherVaultsHoldings() internal view returns (uint256) {}
 
     /// @notice Calculates the total amount of underlying tokens the Vault holds accross chains.
     /// @return The total amount of underlying tokens the Vault holds accross chains.
@@ -587,7 +591,7 @@ contract SavorVault is Savor4626, Ownable {
     /// Updating the virtual price will also be called seperatly since not all vaults will be update when this is called
     /// @param toWithdraw The amount if any that should be pulled from the strategies
     /// @param toDeposit The amount if any that should be deposited into a strategy
-    /// @param newFloat The new amount that should be set as float based on total Vault holdings
+    /// @param newFloat The new percent that should be set as float 
     function runHarvest(uint256 toWithdraw, uint256 toDeposit, uint256 newFloat) external onlyKeeper {
         require(toWithdraw == 0 || toDeposit == 0, "Cannot deposit and withdraw");
         //Update vallues with harvest();
@@ -653,7 +657,7 @@ contract SavorVault is Savor4626, Ownable {
             // Get the strategy's previous and current balance.
             uint256 balanceLastHarvest = getStrategyData[strategy].balance;
             //This neeeds to be adjusted to avoid manipulation
-            uint256 balanceThisHarvest = strategy.estimatedTotalAssets();
+            uint256 balanceThisHarvest = strategy.actualTotalAssets();
 
             // Update the strategy's stored balance. Cast overflow is unrealistic.
             getStrategyData[strategy].balance = balanceThisHarvest

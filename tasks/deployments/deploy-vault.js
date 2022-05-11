@@ -1,4 +1,9 @@
-const { getObject, updateAddress } = require('../../helpers/utils.js')
+const { 
+  getObject, 
+  updateAddress,
+  getSigner,
+  sleep
+ } = require('../../helpers/utils.js')
 const { 
   chainConfigs, 
   targetFloat, 
@@ -6,14 +11,15 @@ const {
   harvestDelay
  } = require('../../helpers/constants')
 const deployments = require('../../deployments.json')
+const  Bridgerton  = require('../../abis/Bridgerton.json')
 
 task('deploy-vault', 'Deploy Savor Vault Contract'
 )
   .addParam('coin', 'Coin to set as Vaults Underlying')
   .addFlag('verify', 'Verify Contracts on Etherscan')
-  .setAction( async ({ coin }) => {
+  .setAction( async ({ coin,  verify }) => {
     try{
-    
+      
       const currentNetwork = hre.network
       const chain = currentNetwork.name
       
@@ -23,7 +29,7 @@ task('deploy-vault', 'Deploy Savor Vault Contract'
       
       let underlying = chainConfig[coin]
       let bridgerton = deployments[chain]['bridgerton']
-
+      
       console.log(`Using ${coin} as underlying for vault at ${underlying}`)
       console.log('Bridgerton ', bridgerton)
       const Vault = await ethers.getContractFactory('SavorVault')
@@ -57,7 +63,6 @@ task('deploy-vault', 'Deploy Savor Vault Contract'
       await tx.wait()
       console.log("Harvest delay set")
       //Then can set a harvest window if desired otherwise it will be set to 0
- 
 
       // //Initialize the Vault
       console.log("Initiliazing Vault...")
@@ -65,23 +70,46 @@ task('deploy-vault', 'Deploy Savor Vault Contract'
       await tx.wait()
       console.log("Vault initiliazed")
 
-      console.log("Vault Ready to Go")
+      let signer = await getSigner(hre)
+
+      const Bridger = await new ethers.Contract(
+          bridgerton,
+          Bridgerton.abi,
+          signer
+      )
+
+      const owner = await Bridger.owner();
+      if(owner == signer.address) {
+        console.log("Adding the Vault to Bridgerton Contract...")
+        tx = await Bridger.setVault(vault.address)
+        await tx.wait()
+        console.log("Vault added")
+
+        console.log(`Adding ${coin} PID in Bridgerton....`)
+        let pid = chainConfig[`${coin}Pid`]
+        tx = await Bridger.addAsset(underlying, pid)
+        await tx.wait()
+        console.log(`${coin} added into Bridgerton Contract`)
+      }
 
       //Update the address in the Deployments file
       updateAddress(chain, 'vault', vault.address)
 
       console.log(`Updated the ${chain} Vault address in deployments.json`)
 
-      //Add logic to verify contract once deployed
-      /*
-      console.log("Verifing Contract...")
-      params = {
-        address: vault.address,
-        constructorArguments: router
+      console.log("Vault Ready to Go!!")
+
+      if(verify) {
+        console.log("Sleeping for 1 minute for Etherscan to recognize deployment")
+        await sleep(75000)
+        console.log("Verifing Contract...")
+        params = {
+          address: vault.address,
+          constructorArguments: [underlying, bridgerton]
+        }
+        await hre.run('verify:verify', params)
+        console.log("Vault Contract verified!")
       }
-      await hre.run('verify', vault.address, )
-      console.log("Vault Contract verified!")
-      */
 
     } catch(error) {
       console.log(error)

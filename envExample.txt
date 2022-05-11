@@ -6,5 +6,6 @@ MORALIS_KEY=""
 
 # Optional Etherscan key, for automatize the verification of the contracts at Etherscan
 ETHERSCAN_KEY=
-
+POLYSCAN_KEY=
+FANTOM_KEY=
 SNOWTRACE_KEY=

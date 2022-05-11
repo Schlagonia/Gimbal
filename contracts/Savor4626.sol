@@ -51,7 +51,7 @@ abstract contract Savor4626 is ERC20, ReentrancyGuard {
     mapping (address => uint256) public sharesPending;
 
     /// @notice The total amount of shares that needs to be pulled on the next harvest from another chain
-    uint256 pendingWithdrawals;
+    uint256 public pendingWithdrawals;
 
     /// @notice A dynamic Array of addresses that need to be payed a certain amount of shares on next harvest
     address[] waitingOnWithdrawals;
@@ -87,7 +87,7 @@ abstract contract Savor4626 is ERC20, ReentrancyGuard {
         uint256 assets,
         address receiver,
         address owner
-    ) public virtual nonReentrant() returns (uint256 shares) {
+    ) public virtual nonReentrant returns (uint256 shares) {
         shares = previewWithdraw(assets); // No need to check for rounding error, previewWithdraw rounds up.
 
         if (msg.sender != owner) {
@@ -118,7 +118,7 @@ abstract contract Savor4626 is ERC20, ReentrancyGuard {
         uint256 shares,
         address receiver,
         address owner
-    ) public virtual nonReentrant() returns (uint256 assets) {
+    ) public virtual nonReentrant returns (uint256 assets) {
         if (msg.sender != owner) {
             uint256 allowed = allowance[owner][msg.sender]; // Saves gas for limited approvals.
 

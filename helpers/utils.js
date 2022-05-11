@@ -1,6 +1,11 @@
 const fs = require('fs');
 const path = './deployments.json'
 
+const getSigner = async (hre) => {
+    const signers = await hre.ethers.getSigners()
+    return signers[0]
+}
+
 //returns an object in the list with chainId parameter
 const getObject = (list, chainId) => {
   
@@ -11,7 +16,6 @@ const getObject = (list, chainId) => {
             return list[i]
         }
     }
-
   }
 
 const getIndex = (list, chainId) => {
@@ -34,8 +38,15 @@ const updateAddress = (chain, contract, address) => {
     fs.writeFileSync(path, data)
 }
 
+const sleep = (milliseconds) => {
+    return new Promise((resolve) => setTimeout(resolve, milliseconds));
+  };
+
+
 module.exports = {
     getObject,
     getIndex,
-    updateAddress
+    updateAddress,
+    getSigner,
+    sleep
 }

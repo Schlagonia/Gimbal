@@ -10,7 +10,6 @@ import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 // Import interfaces for many popular DeFi projects, or add your own!
-import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import '../Interfaces/Aave/V3/IPool.sol';
 import '../Interfaces/Aave/V3/IProtocolDataProvider.sol';
 import {IAToken} from '../Interfaces/Aave/V3/IAToken.sol';

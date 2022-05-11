@@ -84,7 +84,7 @@ abstract contract BaseStrategy {
 
         vault = IVault(_vault);
         underlying = IERC20(vault.UNDERLYING());
-        SafeERC20.safeApprove(underlying, _vault, type(uint256).max); // Give Vault unlimited access (might save gas)
+        underlying.safeApprove(_vault, type(uint256).max); // Give Vault unlimited access (might save gas)
         owner = _owner;
     }
 

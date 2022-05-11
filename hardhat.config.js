@@ -1,8 +1,11 @@
+const { isPropertyAccessChain } = require("typescript");
+
 require("@nomiclabs/hardhat-waffle");
 require('dotenv').config();
 require("@nomiclabs/hardhat-etherscan");
 require('./tasks/deployments/deploy-bridgerton')
 require('./tasks/deployments/deploy-vault')
+require('./tasks/deployments/deploy-strategy')
 //require('./solidity-coverage')
 /*
 To run a script on a fork open a terminal within this repo and run "npx hardhat node --fork YOUR_FULL_MORALIS_URL"
@@ -101,6 +104,17 @@ module.exports = {
     },
   },
   etherscan: {
-    apiKey: process.env.ETHERSCAN_KEY
+    apiKey: {
+      rinkeby: process.env.ETHERSCAN_KEY,
+      polygon: process.env.POLYSCAN_KEY,
+      mumbia: process.env.POLYSCAN_KEY,
+      opera: process.env.FANTOM_KEY,
+      operaTestnet: process.env.FANTOM_KEY,
+      avalanche: process.env.SNOWTRACE_KEY,
+      fuji: process.env.SNOWTRACE_KEY,
+      arbitrum: process.env.ETHERSCAN_KEY,
+      arbitrumRinkebyTestnet: process.env.ETHERSCAN_KEY
+    }
+
   }
 };
