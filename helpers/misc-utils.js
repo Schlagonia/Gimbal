@@ -84,7 +84,7 @@ const impersonateAddress = async (address) => {
       params: [address],
     });
   
-  const signer = hre.ethers.provider.getSigner(address);
+  const signer = ethers.provider.getSigner(address);
 
   return {
     signer

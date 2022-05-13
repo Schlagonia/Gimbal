@@ -107,13 +107,13 @@ module.exports = {
     apiKey: {
       rinkeby: process.env.ETHERSCAN_KEY,
       polygon: process.env.POLYSCAN_KEY,
-      mumbia: process.env.POLYSCAN_KEY,
+      //mumbia: process.env.POLYSCAN_KEY,
       opera: process.env.FANTOM_KEY,
-      operaTestnet: process.env.FANTOM_KEY,
+      //operaTestnet: process.env.FANTOM_KEY,
       avalanche: process.env.SNOWTRACE_KEY,
-      fuji: process.env.SNOWTRACE_KEY,
-      arbitrum: process.env.ETHERSCAN_KEY,
-      arbitrumRinkebyTestnet: process.env.ETHERSCAN_KEY
+      //fuji: process.env.SNOWTRACE_KEY,
+      //arbitrum: process.env.ETHERSCAN_KEY,
+      //arbitrumRinkebyTestnet: process.env.ETHERSCAN_KEY
     }
 
   }
