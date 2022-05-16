@@ -49,7 +49,7 @@ async function main() {
   )
   console.log("Contracts Created...")
   let rinkebyBalance = await rinkebyVault.thisVaultsHoldings()
-  console.log("Current Rinkeby Holdings ", rinkebyBalance.toNumber())
+  console.log("Current Rinkeby Holdings ", rinkebyBalance.toString())
 
   console.log('Running harvest on Rinkeby...')
     //Call harvest on Vault moving funds from
@@ -61,9 +61,9 @@ async function main() {
   await tx.wait()
 
   rinkebyBalance = await rinkebyVault.thisVaultsHoldings()
-  console.log("Current Rinkeby Holdings ", rinkebyBalance.toNumber())
+  console.log("Current Rinkeby Holdings ", rinkebyBalance.toString())
 
-  let amount = rinkebyBalance.toNumber() * .9
+  let amount = BigInt(rinkebyBalance) * BigInt(9) / BigInt(1e10)
   console.log("Amount ", amount)
 
   let swapFee = await bridgertonRinkeby.externalGetSwapFee(
@@ -78,7 +78,7 @@ async function main() {
   //Call Swap on vault moving funds from
   tx = await rinkebyVault.connect(rinkebyWallet).swap(
       mumbaiId,
-      amount,
+      String(amount),
       vaultAddress,
       { value: swapFee }
   )
