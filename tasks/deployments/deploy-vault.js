@@ -8,10 +8,12 @@ const {
   chainConfigs, 
   targetFloat, 
   targetFee,
-  harvestDelay
+  harvestDelay,
+  harvestWindow
  } = require('../../helpers/constants')
 const deployments = require('../../deployments.json')
-const  Bridgerton  = require('../../abis/Bridgerton.json')
+const  Bridgerton  = require('../../abis/Bridgerton.json');
+
 
 task('deploy-vault', 'Deploy Savor Vault Contract'
 )
@@ -32,6 +34,7 @@ task('deploy-vault', 'Deploy Savor Vault Contract'
       
       console.log(`Using ${coin} as underlying for vault at ${underlying}`)
       console.log('Bridgerton ', bridgerton)
+      
       const Vault = await ethers.getContractFactory('SavorVault')
 
       console.log('Deploying Vault.........')
@@ -42,15 +45,16 @@ task('deploy-vault', 'Deploy Savor Vault Contract'
       await vault.deployed()
 
       console.log("Vault Deployed to: ", vault.address)
+      
 
        // //set the fee percent
-      // Sets performance fee to 10%
+      // Sets performance fee to 5%
       console.log("Setting performance fee...")
       let tx = await vault.setFeePercent(targetFee)
       await tx.wait()
       console.log("Perforance fee set")
 
-        // //Set Target Float
+        // //Set Target Float to 100% till harvest
       console.log("Setting the Target Float Amount...")
       tx = await vault.setTargetFloat(targetFloat)
       await tx.wait()
@@ -62,13 +66,24 @@ task('deploy-vault', 'Deploy Savor Vault Contract'
       tx = await vault.setHarvestDelay(harvestDelay)
       await tx.wait()
       console.log("Harvest delay set")
+
       //Then can set a harvest window if desired otherwise it will be set to 0
+      console.log("Setting the Harvest window...")
+      tx = await vault.setHarvestWindow(harvestWindow)
+      await tx.wait()
+      console.log("Harvest Window Set")
 
       // //Initialize the Vault
       console.log("Initiliazing Vault...")
       tx = await vault.initialize()
       await tx.wait()
       console.log("Vault initiliazed")
+
+      //Update the address in the Deployments file
+      updateAddress(chain, 'vault', vault.address)
+
+      console.log(`Updated the ${chain} Vault address in deployments.json`)
+
 
       let signer = await getSigner(hre)
 
@@ -90,12 +105,12 @@ task('deploy-vault', 'Deploy Savor Vault Contract'
         tx = await Bridger.addAsset(underlying, pid)
         await tx.wait()
         console.log(`${coin} added into Bridgerton Contract`)
-      }
 
-      //Update the address in the Deployments file
-      updateAddress(chain, 'vault', vault.address)
-
-      console.log(`Updated the ${chain} Vault address in deployments.json`)
+        console.log("Transferring ownership of Bridgerton...")
+        tx = await Bridger.transferOwnerShip('Add Address')
+        await tx.wait()
+        console.log("Bridgerton ownership transferred")
+      } 
 
       console.log("Vault Ready to Go!!")
 
@@ -110,6 +125,11 @@ task('deploy-vault', 'Deploy Savor Vault Contract'
         await hre.run('verify:verify', params)
         console.log("Vault Contract verified!")
       }
+
+      console.log("Transferring ownership of Vault...")
+      tx = await vault.transferOwnerShip('Add Address')
+      await tx.wait()
+      console.log("Vault ownership transferred and set up complete!")
 
     } catch(error) {
       console.log(error)

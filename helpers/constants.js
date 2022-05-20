@@ -84,15 +84,18 @@ const chainConfigs = [
     }
 ]
 
-const targetFloat = '1000000'
+const targetFloat = '1000000000000000000'
 
-const targetFee = '100000000000000000'
+const targetFee = '50000000000000000'
 
 const harvestDelay = 259200 //3 days
+
+const harvestWindow = harvestDelay;
 
 module.exports = { 
     chainConfigs, 
     targetFloat, 
     targetFee, 
-    harvestDelay 
+    harvestDelay,
+    harvestWindow
 }

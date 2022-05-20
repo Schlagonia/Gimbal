@@ -193,11 +193,10 @@ abstract contract BaseStrategy {
     /// @dev This may only be called by the Vault.
     /// @param _amountNeeded How much `underlying` to withdraw.
     /// @return err error code, or 0 if the withdraw was successful.
-    /// @return amountFreed Actual amount freed
-    function withdraw(uint256 _amountNeeded) external returns (uint256 err, uint256 amountFreed) {
+    function withdraw(uint256 _amountNeeded) external returns (uint256 err) {
         require(msg.sender == address(vault), "!vault");
         // Liquidate as much as possible to `underlying`, up to `_amountNeeded`
-        
+        uint256 amountFreed;
         ( err, amountFreed) = _withdrawSome(_amountNeeded);
         // Send it directly back (NOTE: Using `msg.sender` saves some gas here)
         SafeERC20.safeTransfer(underlying, msg.sender, amountFreed);

@@ -364,7 +364,21 @@ contract SavorVault is Savor4626, Ownable {
                         DEPOSIT/WITHDRAWAL LOGIC
     //////////////////////////////////////////////////////////////*/
 
-    function afterDeposit(uint256, uint256) internal override {}
+    function afterDeposit(uint256, uint256) internal override {
+        //If there are no strategies we cant deposit anything
+        if(withdrawalStack.length == 0) return;
+
+        //If we are under our target float we shouldnt do anything
+        uint256 targetFloatAmount = thisVaultsHoldings().mulWadDown(targetFloat);
+        uint256 currentFloat = totalFloat();
+        if(currentFloat <= targetFloatAmount) return;
+
+        if(fundsDeployedOnThisChain) {
+            //deposit
+            uint256 toDeposit = currentFloat - targetFloatAmount;
+            _depositIntoStrategy(withdrawalStack[withdrawalStack.length - 1], toDeposit);
+        }
+    }
 
     /// @notice Called after the withdraw/redeem functions are called
     /// @dev Checks if we have enouogh funds on this chain for withdraw. If not updates the pending withdraws that will be payed out on next harvest
@@ -533,6 +547,10 @@ contract SavorVault is Savor4626, Ownable {
                              HARVEST LOGIC
     //////////////////////////////////////////////////////////////*/
 
+    ///@notice Bool repersenting whether or not funds are currently deployed on this chain
+    /// @dev initially set to false and only changes on harvests when all funds are sent
+    bool fundsDeployedOnThisChain = false;
+
     /// @notice Emitted after the Virtual price is updated
     /// @param newVirtualPrice The update virtual price.
     event VirtualPriceUpdated(uint256 newVirtualPrice);
@@ -592,7 +610,13 @@ contract SavorVault is Savor4626, Ownable {
     /// @param toWithdraw The amount if any that should be pulled from the strategies
     /// @param toDeposit The amount if any that should be deposited into a strategy
     /// @param newFloat The new percent that should be set as float 
-    function runHarvest(uint256 toWithdraw, uint256 toDeposit, uint256 newFloat) external onlyKeeper {
+    /// @param _fundsDeployedOnThisChain New boolean repersenting if this chain will have the funds deployed
+    function runHarvest(
+        uint256 toWithdraw, 
+        uint256 toDeposit, 
+        uint256 newFloat,
+        bool _fundsDeployedOnThisChain
+    ) external onlyKeeper {
         require(toWithdraw == 0 || toDeposit == 0, "Cannot deposit and withdraw");
         //Update vallues with harvest();
         harvest();
@@ -610,11 +634,13 @@ contract SavorVault is Savor4626, Ownable {
         if (toDeposit > 0) {
             //Assumes the last strat is where we want to deposit. 
             //The Withdrawal stack can be manually updated before this call if need be
-            depositIntoStrategy(withdrawalStack[withdrawalStack.length - 1], toDeposit);
+            _depositIntoStrategy(withdrawalStack[withdrawalStack.length - 1], toDeposit);
         }
 
         //update the new float
         setTargetFloat(newFloat);
+
+        fundsDeployedOnThisChain = _fundsDeployedOnThisChain;
     }
 
     /// @notice Harvest a set of trusted strategies. 
@@ -745,10 +771,17 @@ contract SavorVault is Savor4626, Ownable {
     /// @notice Deposit a specific amount of float into a trusted strategy.
     /// @param strategy The trusted strategy to deposit into.
     /// @param underlyingAmount The amount of underlying tokens in float to deposit.
-    function depositIntoStrategy(Strategy strategy, uint256 underlyingAmount)
-        public
+     function depositIntoStrategy(Strategy strategy, uint256 underlyingAmount)
+        external
         onlyKeeper
     {
+        _depositIntoStrategy(strategy, underlyingAmount);
+    }
+
+    /// @notice Deposit a specific amount of float into a trusted strategy.
+    /// @param strategy The trusted strategy to deposit into.
+    /// @param underlyingAmount The amount of underlying tokens in float to deposit.
+    function _depositIntoStrategy(Strategy strategy, uint256 underlyingAmount) internal {
         // A strategy must be trusted before it can be deposited into.
         require(getStrategyData[strategy].trusted, "UNTRUSTED_STRATEGY");
 

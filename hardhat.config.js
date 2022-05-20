@@ -45,13 +45,18 @@ module.exports = {
   networks: {
     hardhat: {
     },
+    ethereum :{
+      url: `https://speedy-nodes-nyc.moralis.io/${moralisKey}/eth/mainnet`,
+      chainId: 1,
+      accounts: [account]
+    },
     rinkeby: {
       url: `https://speedy-nodes-nyc.moralis.io/${moralisKey}/eth/rinkeby`,
       accounts: [account]
     },
     localhost: {
       url: 'http://127.0.0.1:8545/',
-      gasPrice: 225000000000,
+      //gasPrice: 225000000000,
       timeout: 200000,
     },
     polygon: {
@@ -107,6 +112,7 @@ module.exports = {
     apiKey: {
       rinkeby: process.env.ETHERSCAN_KEY,
       polygon: process.env.POLYSCAN_KEY,
+      polygonMumbai: process.env.POLYSCAN_KEY,
       //mumbia: process.env.POLYSCAN_KEY,
       opera: process.env.FANTOM_KEY,
       //operaTestnet: process.env.FANTOM_KEY,
