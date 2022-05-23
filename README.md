@@ -39,11 +39,12 @@ EX: "npm run bridgerton:rinkeby:deploy" will deploy the bridgerton contract and 
 You can test the deployment tasks on a local fork by inserting localhost in the network spot while a fork of the desired chain is running on your local device at http://127.0.0.1:8545/.
 
 All deployments are saved in deployments.json after deployed to be used in the other tasks.
+
 ---- deployments.txt is the officail addresses and should not be changed ----
 
 Bridgerton contract should be deployed first followed by the Vault then any Strategies can be added
 
-The deploy-strategy task will need to updated based on the contrusctor parameters for the strategy being deployed
+The deploy-strategy task will need to updated based on the constructor parameters for the strategy being deployed
 
 ## Cobntributing
 
