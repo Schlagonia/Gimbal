@@ -4,6 +4,7 @@
   "scripts": {
     "hardhat": "hardhat",
     "compile": "hardhat compile",
+    "hardhat:localhost" : "hardhat --network localhost",
     "hardhat:rinkeby": "hardhat --network rinkeby",
     "hardhat:polygon" : "hardhat --network polygon",
     "hardhat:mumbai" : "hardhat --network mumbai",
@@ -13,6 +14,7 @@
     "hardhat:fuji" : "hardhat --network fuji",
     "hardhat:arbirtum" : "hardhat --network arbirtum",
     "hardhat:arbitrumRinkebyTestnet" : "hardhat --network arbitrumRinkebyTestnet",
+    "bridgerton:localhost" : "npm run compile && npm run hardhat:localhost -- deploy-bridgerton",
     "bridgerton:rinkeby:deploy": "npm run compile && npm run hardhat:rinkeby -- deploy-bridgerton --verify",
     "bridgerton:polygon:deploy": "npm run compile && npm run hardhat:polygon -- deploy-bridgerton --verify",
     "bridgerton:mumbai:deploy": "npm run compile && npm run hardhat:mumbai -- deploy-bridgerton --verify",
@@ -22,6 +24,7 @@
     "bridgerton:fuji:deploy": "npm run compile && npm run hardhat:fuji -- deploy-bridgerton",
     "bridgerton:arbitrum:deploy": "npm run compile && npm run hardhat:arbitrum -- deploy-bridgerton --verify",
     "bridgerton:arbitrumRinkebyTestnet:deploy": "npm run compile && npm run hardhat:arbitrumRinkebyTestnet -- deploy-bridgerton --verify",
+    "vault:localhost:deploy" : "npm run compile && npm run hardhat:localhost -- deploy-vault --coin usdc",
     "vault:rinkeby:deploy" : "npm run compile && npm run hardhat:rinkeby -- deploy-vault --coin usdc --verify",
     "vault:polygon:deploy" : "npm run compile && npm run hardhat:polygon -- deploy-vault --coin usdc --verify",
     "vault:mumbai:deploy" : "npm run compile && npm run hardhat:mumbai -- deploy-vault --coin usdc --verify",
@@ -31,7 +34,9 @@
     "vault:fuji:deploy" : "npm run compile && npm run hardhat:fuji -- deploy-vault --coin usdc",
     "vault:arbitrum:deploy" : "npm run compile && npm run hardhat:arbitrum -- deploy-vault --coin usdc --verify",
     "vault:arbitrumRinkebyTestnet:deploy" : "npm run compile && npm run hardhat:arbitrumRinkebyTestnet -- deploy-vault --coin usdc --verify",
-    "strategy:rinkeby:deploy" : "npm run compile && npm run hardhat:rinkeby -- deploy-strategy --verify"
+    "strategy:localhost:deploy" : "npm run compile && npm run hardhat:localhost -- deploy-strategy",
+    "strategy:rinkeby:deploy" : "npm run compile && npm run hardhat:rinkeby -- deploy-strategy --verify",
+    "strategy:avalanche:deploy" : "npm run compile && npm run hardhat:avalanche -- deploy-strategy --verify"
   },
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.5",

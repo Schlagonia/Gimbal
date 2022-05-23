@@ -56,8 +56,8 @@ module.exports = {
     },
     localhost: {
       url: 'http://127.0.0.1:8545/',
-      //gasPrice: 225000000000,
       timeout: 200000,
+      accounts: [account]
     },
     polygon: {
       url: `https://speedy-nodes-nyc.moralis.io/${moralisKey}/polygon/mainnet`,
@@ -113,7 +113,6 @@ module.exports = {
       rinkeby: process.env.ETHERSCAN_KEY,
       polygon: process.env.POLYSCAN_KEY,
       polygonMumbai: process.env.POLYSCAN_KEY,
-      //mumbia: process.env.POLYSCAN_KEY,
       opera: process.env.FANTOM_KEY,
       //operaTestnet: process.env.FANTOM_KEY,
       avalanche: process.env.SNOWTRACE_KEY,

@@ -1,4 +1,4 @@
-const { getObject, updateAddress, getSigner } = require('../../helpers/utils.js')
+const {  getSigner, sleep } = require('../../helpers/utils.js')
 const deployments = require('../../deployments.json');
 const  SavorVault  = require('../../abis/SavorVault.json')
 
@@ -17,15 +17,15 @@ task('deploy-strategy', 'Deploy a new Strategy Contract and add it to the Vaults
       console.log("Adding to the Vault at ", vault)
 
       //Needs to be updated to the Contract being deployed
-      const Strategy = await ethers.getContractFactory('AaveLender')
+      const Strategy = await ethers.getContractFactory('Vectorfied')
     
       console.log('Deploying.........')
  
       //custom parameters need to be added manually here ///
       const strategy = await Strategy.deploy(
-        vault,
-        '0xBAB2E7afF5acea53a43aEeBa2BA6298D8056DcE5',
-        '0xE039BdF1d874d27338e09B55CB09879Dedca52D8'
+        vault, 
+        '0x1338b4065e25AD681c511644Aa319181FC3d64CC', // Vecotr Pool
+        '0x60aE616a2155Ee3d9A68541Ba4544862310933d4' // Uni V2 Router
       )
       await strategy.deployed()
 
@@ -63,7 +63,11 @@ task('deploy-strategy', 'Deploy a new Strategy Contract and add it to the Vaults
         params = {
           address: strategy.address,
           ///THIS NEEDS TO BE UPDATED BASED ON STRAT PARAMS ///
-          constructorArguments: [, ]
+          constructorArguments: [
+            vault,
+            '0x1338b4065e25AD681c511644Aa319181FC3d64CC', // Vecotr Pool
+            '0x60aE616a2155Ee3d9A68541Ba4544862310933d4'
+          ]
         }
         await hre.run('verify:verify', params)
         console.log("Strategy Contract verified!")

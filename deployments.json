@@ -1,4 +1,8 @@
 {
+  "localhost": {
+    "bridgerton": "0x51Fc722819579f0ed58dcAC14c203aee70b78B74",
+    "vault": "0x886b2A3dc127C1122c005669F726d5D37A135411"
+  },
   "rinkeby": {
     "bridgerton": "0x51Fc722819579f0ed58dcAC14c203aee70b78B74",
     "vault": "0x886b2A3dc127C1122c005669F726d5D37A135411"
