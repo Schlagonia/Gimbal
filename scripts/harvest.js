@@ -3,92 +3,124 @@ const hre = require("hardhat");
 const { networks } = require('../hardhat.config')
 const SavorVault = require('../abis/SavorVault.json')
 const Bridgerton = require('../abis/Bridgerton.json')
-const { impersonateAddress } = require("../helpers/misc-utils");
+const { 
+  getObject, 
+  updateAddress, 
+  sleep,
+  getSigner,
+} = require('../helpers/utils.js')
+const { chainConfigs } = require('../helpers/constants');
+const { BigNumber } = require("ethers");
 
 //must create a .env file with the variable PRIVATE_KEY. Usage: process.env.PRIVATE_KEY
 require('dotenv').config()
 
 async function main() {
 
+  let harvest = true;
+  let swap = false;
+
+  const currentNetwork = hre.network
+  let chain = currentNetwork.name
+
+  let wallet = await getSigner(hre);
+
   const vaultAddress = '0x886b2A3dc127C1122c005669F726d5D37A135411'
   const bridgertonAddress = '0x51Fc722819579f0ed58dcAC14c203aee70b78B74'
+  const wad = BigNumber.from('1000000000000000000')
 
-  const rinkebyId = '10001'
-  const mumbaiId = '10009'
+  //Get the opposite of the chain we are on for the swap function
+  let chainConfig = chain == 'avalanche' ? getObject(chainConfigs, 'polygon') : getObject(chainConfigs, 'avalanche')
 
-  const stargateRouter = '0x82A0F5F531F9ce0df1DF5619f74a0d3fA31FF561'
-  const usdc = '0x1717A0D5C8705EE89A8aD6E808268D6A826C97A4'
-  const tenth = '100000000000000000'
-
-  const rinkeby = networks.rinkeby.url
-  const mumbai = networks.mumbai.url
-
-  const rinkebyProvider = new ethers.providers.JsonRpcProvider(rinkeby)
-  const mumbaiProvider = new ethers.providers.JsonRpcProvider(mumbai)
-
-  let rinkebyWallet = new ethers.Wallet(process.env.PRIV_KEY, rinkebyProvider);
-  let mumbaiWallet = new ethers.Wallet(process.env.PRIV_KEY, mumbaiProvider)
-
+  let secondUrl = chain == 'avalanche' ? networks.polygon.url : networks.avalanche.url
+  const secondProvider = new ethers.providers.JsonRpcProvider(secondUrl)
+  
+  let secondWallet = new ethers.Wallet(process.env.PRIV_KEY, secondProvider)
+ 
   console.log("Instantiating Contracts...")
-  let rinkebyVault = new ethers.Contract(
+  let activeVault = new ethers.Contract(
       vaultAddress,
       SavorVault.abi,
-      rinkebyWallet
+      wallet
   )
 
-  let mumbaiVault = new ethers.Contract(
+  let secondVault = new ethers.Contract(
       vaultAddress,
       SavorVault.abi,
-      mumbaiWallet
+      secondWallet
   )
 
-  let bridgertonRinkeby = new ethers.Contract(
+  let bridgerton = new ethers.Contract(
       bridgertonAddress,
       Bridgerton.abi,
-      rinkebyWallet
+      wallet
   )
   console.log("Contracts Created...")
-  let rinkebyBalance = await rinkebyVault.thisVaultsHoldings()
-  console.log("Current Rinkeby Holdings ", rinkebyBalance.toString())
+  let activeBalance = await activeVault.thisVaultsHoldings()
+  console.log("Active Balance ", activeBalance.toString())
+  let secondBalance = await secondVault.thisVaultsHoldings()
+  console.log("Second balance ", secondBalance.toString())
+  
+  let totalHoldings = activeBalance.add(secondBalance)
+  console.log("Current total Holdings ", totalHoldings.toString())
 
-  console.log('Running harvest on Rinkeby...')
+  let tx;
+
+  if(harvest) {
+
+    console.log('Running harvest on Active chain...')
+
+    let newFloat = '20000000000000000'
+
+    let currentCash = await activeVault.totalFloat()
+    console.log("Current Cash ", currentCash)
+    let targetFloat = activeBalance.mul(BigNumber.from(newFloat)).div(wad)
+    console.log("Target Float ", targetFloat)
+
+    let toDeposit = currentCash.sub(targetFloat)
+    console.log("To Deposit ", toDeposit)
     //Call harvest on Vault moving funds from
-  let tx = await rinkebyVault.connect(rinkebyWallet).runHarvest(
-    '0',
-    '0',
-    '1000000000000000000'
-  )
-  await tx.wait()
+    tx = await activeVault.connect(wallet).runHarvest(
+      '0', // To withdraw
+      toDeposit, // ToDeposit
+      newFloat, //New float
+      true // funds deployed on this chain
+    )
+    await tx.wait()
 
-  rinkebyBalance = await rinkebyVault.thisVaultsHoldings()
-  console.log("Current Rinkeby Holdings ", rinkebyBalance.toString())
+    activeBalance = await activeVault.thisVaultsHoldings()
+    console.log("Current Active Holdings ", activeBalance.toString())
+  }
 
-  let amount = BigInt(rinkebyBalance) * BigInt(9) / BigInt(1e10)
-  console.log("Amount ", amount)
+  if(swap) {
 
-  let swapFee = await bridgertonRinkeby.externalGetSwapFee(
-      mumbaiId,
-      vaultAddress,
-      vaultAddress
-  )
+    let chainId = chainConfig.stargateChainId
+    console.log("Chain ID ", chainId)
 
-  console.log("Swap Fee ", swapFee)
+    let amount = activeBalance.mul(9).div(10)
+    console.log("Amount ", amount)
 
-  console.log("Sending swap call ...")
-  //Call Swap on vault moving funds from
-  tx = await rinkebyVault.connect(rinkebyWallet).swap(
-      mumbaiId,
-      String(amount),
-      vaultAddress,
-      { value: swapFee }
-  )
+    let swapFee = await bridgerton.externalGetSwapFee(
+        chainId,
+        vaultAddress,
+        vaultAddress
+    )
 
-  await tx.wait()
-  console.log("Swapped Called Succeffully!!! ")
+    console.log("Swap Fee ", swapFee)
 
-  //Call harvest on vault funds were moved to
-  mumbaiBalance = await mumbaiVault.thisVaultsHoldings()
-  console.log("Mumbai Balance ", mumbaiBalance.toNumber())
+    console.log("Sending swap call ...")
+    //Call Swap on vault moving funds from
+    tx = await activeVault.connect(wallet).swap(
+        chainId,
+        String(amount),
+        vaultAddress,
+        { value: swapFee }
+    )
+
+    await tx.wait()
+    console.log("Swapped Called Succeffully!!! ")
+  }
+  
 }
 
 main()
