@@ -17,15 +17,15 @@ task('deploy-strategy', 'Deploy a new Strategy Contract and add it to the Vaults
       console.log("Adding to the Vault at ", vault)
 
       //Needs to be updated to the Contract being deployed
-      const Strategy = await ethers.getContractFactory('Vectorfied')
+      const Strategy = await ethers.getContractFactory('AaveLender')
     
       console.log('Deploying.........')
  
       //custom parameters need to be added manually here ///
       const strategy = await Strategy.deploy(
         vault, 
-        '0x1338b4065e25AD681c511644Aa319181FC3d64CC', // Vecotr Pool
-        '0x60aE616a2155Ee3d9A68541Ba4544862310933d4' // Uni V2 Router
+        '0x69FA688f1Dc47d4B5d8029D5a35FB7a548310654', // PDP
+        '0x794a61358D6845594F94dc1DB02A252b5b4814aD' // lending pool
       )
       await strategy.deployed()
 
@@ -54,6 +54,7 @@ task('deploy-strategy', 'Deploy a new Strategy Contract and add it to the Vaults
         tx = await Vault.trustStrategy(strategy.address)
         await tx.wait()
         console.log("Strategy Trusted.")
+
       }
       
       if(verify) {
@@ -65,8 +66,8 @@ task('deploy-strategy', 'Deploy a new Strategy Contract and add it to the Vaults
           ///THIS NEEDS TO BE UPDATED BASED ON STRAT PARAMS ///
           constructorArguments: [
             vault,
-            '0x1338b4065e25AD681c511644Aa319181FC3d64CC', // Vecotr Pool
-            '0x60aE616a2155Ee3d9A68541Ba4544862310933d4'
+            '0x69FA688f1Dc47d4B5d8029D5a35FB7a548310654', // Vecotr Pool
+            '0x794a61358D6845594F94dc1DB02A252b5b4814aD'
           ]
         }
         await hre.run('verify:verify', params)

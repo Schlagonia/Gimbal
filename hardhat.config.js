@@ -62,7 +62,6 @@ module.exports = {
     polygon: {
       url: `https://speedy-nodes-nyc.moralis.io/${moralisKey}/polygon/mainnet`,
       chainId: 137,
-      gasPrice: 50000000000,
       accounts: [account],
     },
     mumbai: {
@@ -85,7 +84,6 @@ module.exports = {
     },
     avalanche: {
       url: `https://speedy-nodes-nyc.moralis.io/${moralisKey}/avalanche/mainnet`,
-      gasPrice: 35000000000,
       chainId: 43114,
       accounts: [account],
     },

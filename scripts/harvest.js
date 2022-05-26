@@ -22,7 +22,7 @@ async function main() {
 
   const currentNetwork = hre.network
   let chain = currentNetwork.name
-
+  //chain = 'polygon'
   let wallet = await getSigner(hre);
 
   const vaultAddress = '0x886b2A3dc127C1122c005669F726d5D37A135411'
@@ -78,6 +78,7 @@ async function main() {
     console.log("Target Float ", targetFloat)
 
     let toDeposit = currentCash.sub(targetFloat)
+    
     console.log("To Deposit ", toDeposit)
     //Call harvest on Vault moving funds from
     tx = await activeVault.connect(wallet).runHarvest(

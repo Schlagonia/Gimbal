@@ -36,6 +36,7 @@
     "vault:arbitrumRinkebyTestnet:deploy" : "npm run compile && npm run hardhat:arbitrumRinkebyTestnet -- deploy-vault --coin usdc --verify",
     "strategy:localhost:deploy" : "npm run compile && npm run hardhat:localhost -- deploy-strategy",
     "strategy:rinkeby:deploy" : "npm run compile && npm run hardhat:rinkeby -- deploy-strategy --verify",
+    "strategy:polygon:deploy" : "npm run compile && npm run hardhat:polygon -- deploy-strategy --verify",
     "strategy:avalanche:deploy" : "npm run compile && npm run hardhat:avalanche -- deploy-strategy --verify"
   },
   "devDependencies": {

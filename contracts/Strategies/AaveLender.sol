@@ -69,8 +69,10 @@ contract AaveLender is BaseStrategy {
         return IERC20(_token).balanceOf(address(this));
     }
 
-    function estimatedTotalAssets() public view override returns (uint256) {
-        return balanceOfToken(address(underlying)) + aaveBalance();
+    function estimatedTotalAssets() public view override returns (uint256 totalAssets) {
+        unchecked{
+            totalAssets = balanceOfToken(address(underlying)) + aaveBalance();
+        }
     } 
 
     /// @notice This is called to get an accurate non-manipulatable amount the strategy holds

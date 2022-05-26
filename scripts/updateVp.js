@@ -54,19 +54,19 @@ async function main() {
 
   let newVirtualPrice = totalHoldings.mul(wad).div(totalSupply)
   console.log('New virtual price will be ', newVirtualPrice.toString())
-
+  
   console.log('Updating the VP on avax and poly...')
     //Call harvest on Vault moving funds from
   let tx = await avaxVault.connect(avaxWallet).updateVirtualPrice(
     newVirtualPrice
   )
+  await tx.wait()
+  console.log("Avax vp updated") 
 
   let tx2 = await polyVault.connect(polyWallet).updateVirtualPrice(
     newVirtualPrice
     )
 
-  await tx.wait()
-  console.log("Avax vp updated")  
   await tx2.wait()
   console.log("Poly vp updated")
 
