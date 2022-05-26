@@ -4,7 +4,7 @@ const { networks } = require('../hardhat.config')
 const SavorVault = require('../abis/SavorVault.json')
 const Bridgerton = require('../abis/Bridgerton.json')
 const Strategy = require('../artifacts/contracts/Strategies/Vectorfied.sol/Vectorfied.json')
-const ERC20 = require('./ERC20.json')
+const ERC20 = require('../abis/erc20.abi.json')
 const { impersonateAddress } = require("../helpers/misc-utils");
 const { getSigner } = require("../helpers/utils.js")
 

@@ -27,7 +27,7 @@ The Strategies for each vault (StratExample.sol) are adapted from Yearn.Finance 
 
 ## Tests
 
-
+npx hardhat test
 ## Deploy
 
 All contracts can be deployed through the pre-made npm commands to any supported network.
